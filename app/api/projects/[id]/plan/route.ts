@@ -21,7 +21,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       apis:body.apis??null,
       security:body.security??null,
       testing:body.testing??null,
-      deployment:body.deployment??null
+      deployment:body.deployment??null,
+      tasks:body.tasks??[]
     }).select("*").single();
     if (error) return Response.json({ error:error.message }, { status:500 });
     return Response.json({ plan:data }, { status:201 });
