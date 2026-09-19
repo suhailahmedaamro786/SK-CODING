@@ -8,6 +8,8 @@ export interface GatewayProviderSecret {
   priority: number;
 }
 
+const FALLBACK_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+
 export class AIGateway {
   constructor(private readonly providers: GatewayProviderSecret[]) {}
 
@@ -17,16 +19,14 @@ export class AIGateway {
     let lastError: unknown;
     for (const configured of ordered) {
       try {
-        const adapter = getProviderAdapter(configured.provider);
-        return await adapter.generateText(
+        return await getProviderAdapter(configured.provider).generateText(
           { ...request, modelPreference: request.modelPreference || configured.model },
           configured.secret,
         );
       } catch (error) {
         lastError = error;
         const status = (error as Error & { status?: number }).status;
-        // Fallback only for transient/rate-limit/provider-availability failures.
-        if (![408, 409, 425, 429, 500, 502, 503, 504].includes(status ?? 500)) throw error;
+        if (status === undefined || !FALLBACK_STATUSES.has(status)) throw error;
       }
     }
     throw lastError instanceof Error ? lastError : new Error("ALL_AI_PROVIDERS_FAILED");
