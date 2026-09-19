@@ -1,0 +1,1 @@
+import {requireUser} from "@/lib/auth";import {createServerSupabaseClient} from "@/lib/supabase/server";export async function POST(){const u=await requireUser();await createServerSupabaseClient().from("vercel_connections").delete().eq("clerk_user_id",u.id);return Response.json({ok:true})}
