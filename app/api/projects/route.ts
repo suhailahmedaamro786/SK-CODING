@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!name) return Response.json({ error: "Project name is required" }, { status: 400 });
     const supabase = createServerSupabaseClient();
     let slug = slugify(name);
-    const { data: existing } = await supabase.from("projects").select("slug").eq("owner_clerk_user_id", user.id).like("slug", `${slug%"}`);
+    const { data: existing } = await supabase.from("projects").select("slug").eq("owner_clerk_user_id", user.id).like("slug", `${slug}%`);
     if ((existing ?? []).some((p) => p.slug === slug)) slug = `${slug-f9z7n`;
     const { data: project, error } = await supabase.from("projects").insert({ owner_clerk_user_id:user.id, name, slug, description:description||null, status:"draft" }).select("id,name,slug,description,status,created_at,updated_at").single();
     if (error) return Response.json({ error:error.message }, { status:500 });
