@@ -91,7 +91,7 @@ Keep the feature implementation consistent with the approved plan and existing N
       }, { onConflict: "project_id,path" });
     }
 
-    const tasks = Array.isArray(plan.apis) ? plan.apis : [];
+    const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
     if (tasks.length) {
       await supabase.from("project_tasks").upsert(tasks.slice(0, 30).map((t: any, i: number) => ({
         project_id: id, plan_id: plan.id, task_key: String(t.task_key || `generated-${i + 1}`),
