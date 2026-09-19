@@ -1,0 +1,5 @@
+import { currentUser } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { getStoredGithubToken, createGithubRepository } from "@/lib/github";
+export async function POST(request:Request){const user=await currentUser();if(!user?.id)return NextResponse.json({error:"UNAUTHORIZED"},{status:401});const body=await request.json().catch(()=>({}));const name=String(body.name||"").trim().toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,90);if(!name||name.length<2)return NextResponse.json({error:"INVALID_REPOSITORY_NAME"},{status:400});const description=typeof body.description==="string"?body.description.slice(0,300):undefined;const {data}=await supabaseAdmin().from("github_connections").select("encrypted_access_token").eq("clerk_user_id",user.id).maybeSingle();if(!data?.encrypted_access_token)return NextResponse.json({error:"GITHUB_NOT_CONNECTED"},{status:400});const repo=await createGithubRepository(await getStoredGithubToken(data.encrypted_access_token),name,description);return NextResponse.json({repository:repo},{status:201});}
