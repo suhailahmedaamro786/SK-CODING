@@ -1,18 +1,96 @@
 "use client";
-import Link from "next/link";import{useEffect,useMemo,useState}from"react";
-type Message={id:string;role:"user"|"assistant"|"system";content:string;created_at:string};type Project={id:string;name:string;description:string|null;status:string;specification:any;architecture:any;github_repo_full_name?:string;github_repo_url?:string};type Plan={id:string;status:string;version:number;architecture:any;technology:any;pages:any;components:any;database_entities:any;apis:any;security:any;testing:any;deployment:any};
-const questions=[["purpose","What is the main purpose of this product? Who should get value from it?"],["users","Who are the target users and what are their main roles?"],["pages","What pages or screens do you need? Include dashboard/admin/auth pages if relevant."],["features","What are the most important features for the first version?"],["auth","Do you need email/password, Google, GitHub, roles, or admin access?"],["data","What information should the app store? Mention important entities such as users, products, bookings, tasks, etc."],["design","Describe the visual style, colors, inspiration, and responsive requirements."],["integrations","Do you need payments, email, maps, AI, external APIs, storage, or other integrations?"]];
-export default function ProjectPage({params}:{params:Promise<{id:string}>}){const[id,setId]=useState("");const[project,setProject]=useState<Project|null>(null);const[messages,setMessages]=useState<Message[]>([]);const[plan,setPlan]=useState<Plan|null>(null);const[answers,setAnswers]=useState<Record<string,string>>({});const[idea,setIdea]=useState("");const[loading,setLoading]=useState(true);const[busy,setBusy]=useState(false);const[deploying,setDeploying]=useState(false);const[error,setError]=useState("");const[result,setResult]=useState<any>(null);
-useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
-async function load(projectId:string){setLoading(true);const r=await fetch("/api/projects/"+projectId);const d=await r.json();if(!r.ok){setError(d.error||"Could not load project");setLoading(false);return}setProject(d.project);setMessages(d.messages||[]);setPlan(d.plan);setIdea(d.project.description||"");setLoading(false)}
-async function saveMessage(content:string,role:"user"|"assistant"="user"){const r=await fetch("/api/projects/"+id+"/messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content,role})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Message save failed");setMessages(m=>[...m,d.message])}
-async function generatePlan(){if(!id||!project)return;setBusy(true);setError("");try{const transcript=questions.map(([key,q])=>q+"\nAnswer: "+(answers[key]||"Not specified")).join("\n\n");await saveMessage(transcript,"user");const prompt=["You are the product architect for SK Builder.","Turn the following product interview into a practical MVP build plan.","Return ONLY valid JSON with keys: summary, architecture, technology, pages, components, database_entities, apis, security, testing, deployment, tasks.","Keep scope realistic. Use Next.js + TypeScript + Tailwind/shadcn, Supabase, and server-side APIs unless requirements clearly demand another choice.","Do not invent business requirements. Mark missing information as assumptions.","Project: "+project.name,"Initial idea: "+idea,transcript].join("\n\n");const r=await fetch("/api/ai/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:id,taskType:"planning",messages:[{role:"user",content:prompt}]})});const d=await r.json();if(!r.ok)throw new Error(d.error||"AI planning failed");let parsed:any;try{parsed=JSON.parse(d.text)}catch{const m=String(d.text||"").match(/\{[\s\S]*\}/);if(!m)throw new Error("AI returned non-JSON plan");parsed=JSON.parse(m[0])}const pr=await fetch("/api/projects/"+id,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({status:"planning",specification:{summary:parsed.summary,answers},architecture:parsed.architecture})});if(!pr.ok)throw new Error("Could not save project plan");const sr=await fetch("/api/projects/"+id+"/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({project_id:id,version:(plan?.version||0)+1,status:"draft",architecture:parsed.architecture,technology:parsed.technology,pages:parsed.pages,components:parsed.components,database_entities:parsed.database_entities,apis:parsed.apis,security:parsed.security,testing:parsed.testing,deployment:parsed.deployment,tasks:parsed.tasks||[]})});const sd=await sr.json();if(!sr.ok)throw new Error(sd.error||"Could not save plan");await saveMessage("Plan generated successfully. It is ready for build approval.","assistant");setPlan(sd.plan)}catch(e){setError(e instanceof Error?e.message:"Something went wrong")}finally{setBusy(false)}}
-async function build(){setBusy(true);setError("");setResult(null);try{const r=await fetch("/api/projects/"+id+"/build",{method:"POST"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Build failed");setResult(d);await load(id)}catch(e){setError(e instanceof Error?e.message:"Build failed")}finally{setBusy(false)}}
-async function deploy(){setDeploying(true);setError("");try{const r=await fetch("/api/projects/"+id+"/deploy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Deployment failed");setResult(d);await load(id)}catch(e){setError(e instanceof Error?e.message:"Deployment failed")}finally{setDeploying(false)}}
-const completion=useMemo(()=>questions.filter(([k])=>(answers[k]||"").trim()).length,[answers]);
-if(loading)return <main className="min-h-screen p-8 text-zinc-400">Loading project…</main>;
-if(!project)return <main className="min-h-screen p-8"><Link href="/dashboard/projects">← Projects</Link><div className="mt-6 rounded-xl border border-red-500/30 p-4 text-red-300">{error||"Project not found"}</div></main>;
-return <main className="min-h-screen px-5 py-6"><div className="mx-auto max-w-7xl"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5"><div><Link href="/dashboard/projects" className="text-sm text-zinc-500 hover:text-white">← Projects</Link><h1 className="mt-2 text-3xl font-bold">{project.name}</h1><p className="text-sm text-zinc-500">{project.status} · {completion}/{questions.length} interview sections completed</p></div><Link href="/dashboard/integrations" className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5">Integrations</Link></div>{error&&<div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}{result&&<div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-300">{result.repository?.url&&<>GitHub: <a className="underline" href={result.repository.url} target="_blank">{result.repository.url}</a><br/></>}{result.url&&<>Live Vercel: <a className="underline" href={result.url} target="_blank">{result.url}</a></>}{result.files&&<div className="mt-2 text-xs text-zinc-400">{result.files.length} files generated and pushed.</div>}</div>}
-<div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr]"><section className="rounded-3xl border border-white/10 bg-white/[.025] p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold tracking-widest text-violet-300">STEP 1</p><h2 className="mt-1 text-xl font-semibold">AI requirements interview</h2></div><span className="text-sm text-zinc-500">{completion}/{questions.length}</span></div><label className="mt-5 block text-sm text-zinc-300">Initial idea<textarea value={idea} onChange={e=>setIdea(e.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-violet-400"/></label><div className="mt-5 space-y-4">{questions.map(([key,q],i)=><label key={key} className="block text-sm text-zinc-300"><span>{i+1}. {q}</span><textarea value={answers[key]||""} onChange={e=>setAnswers(a=>({...a,[key]:e.target.value}))} rows={3} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 text-sm outline-none focus:border-violet-400" placeholder="Your answer…"/></label>)}</div><button onClick={generatePlan} disabled={busy||completion<4} className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-semibold text-black disabled:opacity-40">{busy?"Working…":"Generate build plan →"}</button></section>
-<section className="space-y-6"><div className="rounded-3xl border border-white/10 bg-white/[.025] p-6"><p className="text-xs font-semibold tracking-widest text-violet-300">STEP 2</p><h2 className="mt-1 text-xl font-semibold">Build & ship</h2>{!plan?<p className="mt-4 text-sm text-zinc-500">Generate the plan first. Then SK Builder will create the app, push it to your GitHub repository and deploy it to Vercel.</p>:<div className="mt-5 space-y-4"><Block title="Architecture" value={plan.architecture}/><Block title="Technology" value={plan.technology}/><Block title="Pages" value={plan.pages}/><Block title="Database" value={plan.database_entities}/><Block title="Security & testing" value={{security:plan.security,testing:plan.testing}}/><div className="grid gap-3 sm:grid-cols-2"><button onClick={build} disabled={busy} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold hover:bg-violet-400 disabled:opacity-50">{busy?"Generating…":"Approve & Build → GitHub"}</button><button onClick={deploy} disabled={deploying||busy} className="rounded-xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5 disabled:opacity-50">{deploying?"Deploying…":"Deploy to Vercel →"}</button></div>{project.github_repo_url&&<a href={project.github_repo_url} target="_blank" className="block text-xs text-zinc-500 underline">Open generated GitHub repository</a>}</div>}</div><div className="rounded-3xl border border-white/10 bg-white/[.025] p-6"><p className="text-xs font-semibold tracking-widest text-zinc-500">ACTIVITY</p><div className="mt-4 space-y-3 max-h-72 overflow-auto">{messages.map(m=><div key={m.id} className="rounded-xl border border-white/5 p-3"><div className="text-[11px] uppercase tracking-wider text-zinc-600">{m.role}</div><p className="mt-1 whitespace-pre-wrap text-xs text-zinc-400">{m.content.slice(0,1200)}</p></div>)}</div></div></section></div></div></main>}
-function Block({title,value}:{title:string;value:any}){return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><div className="text-sm font-medium text-zinc-300">{title}</div><pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-5 text-zinc-500">{typeof value==="string"?value:JSON.stringify(value,null,2)}</pre></div>}
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+type FileItem={path:string;content:string;status:string};
+type Message={id:string;role:"user"|"assistant"|"system";content:string;created_at:string};
+type Project={id:string;name:string;description:string|null;status:string;github_repo_url?:string|null};
+type Deployment={deployment_url?:string|null;status:string;created_at:string};
+
+export default function ProjectWorkspace({params}:{params:Promise<{id:string}>}){
+  const [id,setId]=useState(""); const [project,setProject]=useState<Project|null>(null);
+  const [files,setFiles]=useState<FileItem[]>([]); const [messages,setMessages]=useState<Message[]>([]);
+  const [prompt,setPrompt]=useState(""); const [busy,setBusy]=useState(false); const [deploying,setDeploying]=useState(false);
+  const [error,setError]=useState(""); const [selected,setSelected]=useState(""); const [preview,setPreview]=useState("");
+  const [tab,setTab]=useState<"preview"|"files">("preview");
+
+  useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
+  async function load(projectId:string){
+    const r=await fetch("/api/projects/"+projectId); const d=await r.json();
+    if(!r.ok){setError(d.error||"Could not load project");return}
+    setProject(d.project); setFiles(d.files||[]); setMessages(d.messages||[]);
+    const live=(d.deployments||[]).find((x:Deployment)=>x.deployment_url);
+    if(live?.deployment_url)setPreview(live.deployment_url);
+    if(!selected && d.files?.[0])setSelected(d.files[0].path);
+  }
+  async function sendPrompt(){
+    const text=prompt.trim(); if(!text||busy)return;
+    setBusy(true); setError("");
+    try{
+      const hasFiles=files.length>0;
+      const r=await fetch("/api/projects/"+id+(hasFiles?"/edit":"/build"),{
+        method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:text})
+      });
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||"AI task failed");
+      setPrompt("");
+      await load(id);
+      if(d.repository?.url) setProject(p=>p?{...p,github_repo_url:d.repository.url}:p);
+    }catch(e){setError(e instanceof Error?e.message:"AI task failed")}finally{setBusy(false)}
+  }
+  async function deploy(){
+    setDeploying(true);setError("");
+    try{
+      const r=await fetch("/api/projects/"+id+"/deploy",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||"Deployment failed");
+      if(d.url)setPreview(d.url);await load(id);
+    }catch(e){setError(e instanceof Error?e.message:"Deployment failed")}finally{setDeploying(false)}
+  }
+  const current=useMemo(()=>files.find(f=>f.path===selected),[files,selected]);
+
+  if(!project && !error)return <main className="min-h-screen p-8 text-zinc-400">Loading workspace…</main>;
+  return <main className="min-h-screen bg-[#08090c] text-zinc-100">
+    <header className="flex h-16 items-center gap-4 border-b border-white/10 px-5">
+      <Link href="/dashboard/projects" className="font-bold tracking-tight">SK Builder</Link>
+      <span className="text-xs text-zinc-500">/ {project?.name||"Workspace"}</span>
+      <div className="ml-auto flex items-center gap-2">
+        <button onClick={()=>setTab("preview")} className={"rounded-lg px-3 py-2 text-xs "+(tab==="preview"?"bg-white/10":"text-zinc-500")}>Preview</button>
+        <a href={project?.github_repo_url||"#"} target="_blank" className={"rounded-lg px-3 py-2 text-xs "+(project?.github_repo_url?"hover:bg-white/10":"pointer-events-none text-zinc-700")}>GitHub</a>
+        <Link href="/dashboard/integrations" className="rounded-lg px-3 py-2 text-xs text-zinc-500 hover:bg-white/10">Supabase</Link>
+        <button onClick={deploy} disabled={deploying||!files.length} className="rounded-lg bg-violet-500 px-3 py-2 text-xs font-semibold hover:bg-violet-400 disabled:opacity-40">{deploying?"Deploying…":"Deploy"}</button>
+      </div>
+    </header>
+
+    {error&&<div className="mx-5 mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+
+    <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[320px_minmax(0,1fr)_300px]">
+      <aside className="flex flex-col border-r border-white/10 bg-[#0b0d11]">
+        <div className="border-b border-white/10 p-4"><div className="text-xs uppercase tracking-[.25em] text-violet-300">AI Builder</div><div className="mt-1 text-sm text-zinc-400">{project?.status||"ready"}</div></div>
+        <div className="flex-1 space-y-3 overflow-auto p-4">
+          {messages.filter(m=>m.role!=="system").map(m=><div key={m.id} className={"rounded-2xl p-3 "+(m.role==="user"?"bg-white/10":"bg-violet-500/10 border border-violet-400/10")}><div className="mb-1 text-[10px] uppercase tracking-widest text-zinc-600">{m.role==="user"?"You":"SK Builder"}</div><p className="whitespace-pre-wrap text-sm leading-6 text-zinc-300">{m.content.slice(0,1200)}</p></div>)}
+          {!messages.length&&<div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-500">Describe what you want to build. No questionnaire — SK Builder will make reasonable assumptions and start.</div>}
+        </div>
+        <div className="border-t border-white/10 p-4">
+          <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendPrompt()}}} rows={5} placeholder={files.length?"Ask SK Builder to change anything…":"Describe the app you want to build…"} className="w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-3 text-sm outline-none focus:border-violet-400"/>
+          <button onClick={sendPrompt} disabled={busy||!prompt.trim()} className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-40">{busy?"AI is working…":files.length?"Apply changes →":"Build application →"}</button>
+          <p className="mt-2 text-[11px] text-zinc-600">Enter to send · Shift+Enter for a new line</p>
+        </div>
+      </aside>
+
+      <section className="min-w-0 bg-[#101217]">
+        <div className="flex h-12 items-center border-b border-white/10 px-4 text-xs text-zinc-500">
+          <button onClick={()=>setTab("preview")} className={"px-3 py-2 "+(tab==="preview"?"text-white":"")}>LIVE PREVIEW</button>
+          <button onClick={()=>setTab("files")} className={"px-3 py-2 "+(tab==="files"?"text-white":"")}>CODE</button>
+        </div>
+        {tab==="preview"?<div className="h-[calc(100vh-7rem)] p-4">
+          {preview?<iframe title="Live Preview" src={preview} className="h-full w-full rounded-2xl border border-white/10 bg-white"/>:<div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-white/10 text-center text-sm text-zinc-600">Build the app, then press Deploy to load the live preview here.</div>}
+        </div>:<div className="h-[calc(100vh-7rem)] overflow-auto p-5">{current?<><div className="mb-3 text-sm text-zinc-300">{current.path}</div><pre className="overflow-auto rounded-2xl border border-white/10 bg-black/30 p-5 text-xs leading-5 text-zinc-400">{current.content}</pre></>:<p className="text-sm text-zinc-600">Select a file.</p>}</div>}
+      </section>
+
+      <aside className="hidden border-l border-white/10 bg-[#0b0d11] lg:block">
+        <div className="border-b border-white/10 p-4"><div className="text-xs uppercase tracking-[.25em] text-zinc-500">PROJECT FILES</div><div className="mt-1 text-xs text-zinc-600">{files.length} generated files</div></div>
+        <div className="p-3">{files.map(f=><button key={f.path} onClick={()=>{setSelected(f.path);setTab("files")}} className={"block w-full rounded-lg px-3 py-2 text-left text-xs "+(selected===f.path?"bg-white/10 text-white":"text-zinc-500 hover:bg-white/5")}>{f.path}</button>)}</div>
+      </aside>
+    </div>
+  </main>;
+}
