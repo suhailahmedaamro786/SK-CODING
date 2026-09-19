@@ -1,0 +1,102 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+type Message={id:string;role:"user"|"assistant"|"system";content:string;created_at:string};
+type Project={id:string;name:string;description:string|null;status:string;specification:any;architecture:any};
+type Plan={id:string;status:string;version:number;architecture:any;technology:any;pages:any;components:any;database_entities:any;apis:any;security:any;testing:any;deployment:any};
+
+const questions=[
+  ["purpose","What is the main purpose of this product? Who should get value from it?"],
+  ["users","Who are the target users and what are their main roles?"],
+  ["pages","What pages or screens do you need? Include dashboard/admin/auth pages if relevant."],
+  ["features","What are the most important features for the first version?"],
+  ["auth","Do you need email/password, Google, GitHub, roles, or admin access?"],
+  ["data","What information should the app store? Mention important entities such as users, products, bookings, tasks, etc."],
+  ["design","Describe the visual style, colors, inspiration, and responsive requirements."],
+  ["integrations","Do you need payments, email, maps, AI, external APIs, storage, or other integrations?"]
+];
+
+export default function ProjectPage({params}:{params:Promise<{id:string}>}) {
+  const [id,setId]=useState(""); const [project,setProject]=useState<Project|null>(null); const [messages,setMessages]=useState<Message[]>([]); const [plan,setPlan]=useState<Plan|null>(null);
+  const [answers,setAnswers]=useState<Record<string,string>>({}); const [idea,setIdea]=useState(""); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+
+  useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
+  async function load(projectId:string){
+    setLoading(true); setError("");
+    const r=await fetch("/api/projects/"+projectId); const d=await r.json();
+    if(!r.ok){setError(d.error||"Could not load project");setLoading(false);return}
+    setProject(d.project);setMessages(d.messages||[]);setPlan(d.plan);setIdea(d.project.description||"");setLoading(false);
+  }
+  async function saveMessage(content:string,role:"user"|"assistant"="user"){
+    const r=await fetch("/api/projects/"+id+"/messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content,role})});
+    const d=await r.json(); if(r.ok)setMessages(m=>[...m,d.message]); else throw new Error(d.error||"Message save failed");
+  }
+  async function generatePlan(){
+    if(!id||!project)return;
+    setBusy(true);setError("");
+    try{
+      const transcript=questions.map(([key,q])=>q+"\nAnswer: "+(answers[key]||"Not specified")).join("\n\n");
+      await saveMessage(transcript,"user");
+      const prompt=[
+        "You are the product architect for SK Builder.",
+        "Turn the following product interview into a practical MVP build plan.",
+        "Return ONLY valid JSON with keys: summary, architecture, technology, pages, components, database_entities, apis, security, testing, deployment, tasks.",
+        "Keep scope realistic. Use Next.js + TypeScript + Tailwind/shadcn, Supabase, and server-side APIs unless the requirements clearly demand another choice.",
+        "Do not invent business requirements. Mark missing information as assumptions.",
+        "Project: "+project.name,
+        "Initial idea: "+idea,
+        transcript
+      ].join("\n\n");
+      const r=await fetch("/api/ai/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:id,taskType:"planning",messages:[{role:"user",content:prompt}]})});
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||"AI planning failed");
+      let parsed:any; try{parsed=JSON.parse(d.text)}catch{const match=String(d.text||"").match(/\{[\s\S]*\}/); if(!match)throw new Error("AI returned non-JSON plan"); parsed=JSON.parse(match[0])}
+      const pr=await fetch("/api/projects/"+id,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({status:"planning",specification:{summary:parsed.summary,answers},architecture:parsed.architecture})});
+      if(!pr.ok)throw new Error("Could not save project plan");
+      const planPayload={project_id:id,version:(plan?.version||0)+1,status:"draft",architecture:parsed.architecture,technology:parsed.technology,pages:parsed.pages,components:parsed.components,database_entities:parsed.database_entities,apis:parsed.apis,security:parsed.security,testing:parsed.testing,deployment:parsed.deployment};
+      const sr=await fetch("/api/projects/"+id+"/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(planPayload)});
+      const sd=await sr.json(); if(!sr.ok)throw new Error(sd.error||"Could not save plan");
+      await saveMessage("Plan generated successfully. Review it below before approving.","assistant");
+      setPlan(sd.plan);
+    }catch(e){setError(e instanceof Error?e.message:"Something went wrong")}finally{setBusy(false)}
+  }
+
+  const completion=useMemo(()=>questions.filter(([k])=>(answers[k]||"").trim()).length,[answers]);
+  if(loading)return <main className="min-h-screen p-8 text-zinc-400">Loading project…</main>;
+  if(error&&!project)return <main className="min-h-screen p-8"><Link href="/dashboard/projects">← Projects</Link><div className="mt-6 rounded-xl border border-red-500/30 p-4 text-red-300">{error}</div></main>;
+
+  return <main className="min-h-screen px-5 py-6"><div className="mx-auto max-w-7xl">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+      <div><Link href="/dashboard/projects" className="text-sm text-zinc-500 hover:text-white">← Projects</Link><h1 className="mt-2 text-3xl font-bold">{project?.name}</h1><p className="text-sm text-zinc-500">{project?.status} · {completion}/{questions.length} interview sections completed</p></div>
+      <Link href="/dashboard/integrations" className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5">Integrations</Link>
+    </div>
+    {error&&<div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+    <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <section className="rounded-3xl border border-white/10 bg-white/[.025] p-6">
+        <div className="flex items-center justify-between"><div><p className="text-xs font-semibold tracking-widest text-violet-300">STEP 1</p><h2 className="mt-1 text-xl font-semibold">AI requirements interview</h2></div><span className="text-sm text-zinc-500">{completion}/{questions.length}</span></div>
+        <p className="mt-2 text-sm leading-6 text-zinc-500">Answer the essentials first. You can refine the plan later.</p>
+        <label className="mt-5 block text-sm text-zinc-300">Initial idea<textarea value={idea} onChange={e=>setIdea(e.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-violet-400"/></label>
+        <div className="mt-5 space-y-4">{questions.map(([key,q],i)=><label key={key} className="block text-sm text-zinc-300"><span>{i+1}. {q}</span><textarea value={answers[key]||""} onChange={e=>setAnswers(a=>({...a,[key]:e.target.value}))} rows={3} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 text-sm outline-none focus:border-violet-400" placeholder="Your answer…"/></label>)}</div>
+        <button onClick={generatePlan} disabled={busy||completion<4} className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-semibold text-black disabled:opacity-40">{busy?"Generating plan…":"Generate build plan →"}</button>
+        {completion<4&&<p className="mt-2 text-center text-xs text-zinc-600">Answer at least 4 sections to generate a useful plan.</p>}
+      </section>
+      <section className="space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-white/[.025] p-6"><p className="text-xs font-semibold tracking-widest text-violet-300">STEP 2</p><h2 className="mt-1 text-xl font-semibold">Build plan</h2>
+          {!plan?<p className="mt-4 text-sm text-zinc-500">Your generated architecture, pages, database and tasks will appear here.</p>:<div className="mt-5 space-y-4">
+            <Block title="Summary" value={plan.architecture?.summary||project?.specification?.summary||"Plan ready"}/>
+            <Block title="Architecture" value={plan.architecture}/>
+            <Block title="Technology" value={plan.technology}/>
+            <Block title="Pages" value={plan.pages}/>
+            <Block title="Database" value={plan.database_entities}/>
+            <Block title="Security & testing" value={{security:plan.security,testing:plan.testing}}/>
+            <div className="flex gap-3"><button className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5" onClick={()=>alert("Plan review is saved. Editing/approval will be enabled in the next build stage.")}>Review plan</button><button className="flex-1 rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold hover:bg-violet-400" onClick={()=>alert("Next stage: generate the application repository from this approved plan.")}>Approve & Build</button></div>
+          </div>}
+        </div>
+        <div className="rounded-3xl border border-white/10 bg-white/[.025] p-6"><p className="text-xs font-semibold tracking-widest text-zinc-500">ACTIVITY</p><div className="mt-4 space-y-3 max-h-72 overflow-auto">{messages.length===0?<p className="text-sm text-zinc-600">No activity yet.</p>:messages.map(m=><div key={m.id} className="rounded-xl border border-white/5 p-3"><div className="text-[11px] uppercase tracking-wider text-zinc-600">{m.role}</div><p className="mt-1 whitespace-pre-wrap text-xs text-zinc-400">{m.content.slice(0,1200)}</p></div>)}</div></div>
+      </section>
+    </div>
+  </div></main>
+}
+
+function Block({title,value}:{title:string;value:any}){return <div className="rounded-2xl border border-white/5 bg-black/20 p-4"><div className="text-sm font-medium text-zinc-300">{title}</div><pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-5 text-zinc-500">{typeof value==="string"?value:JSON.stringify(value,null,2)}</pre></div>}
