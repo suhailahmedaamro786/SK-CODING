@@ -25,12 +25,14 @@ export async function POST(request: Request) {
     const description = String(body?.description ?? "").trim();
     if (!name) return Response.json({ error: "Project name is required" }, { status: 400 });
     const supabase = createServerSupabaseClient();
-    let slug = slugify(name);
-    const { data: existing } = await supabase.from("projects").select("slug").eq("owner_clerk_user_id", user.id).like("slug", `${slug}%`);
-    if ((existing ?? []).some((p) => p.slug === slug)) slug = `${slug-f9z7n`;
+    const baseSlug = slugify(name);
+    let slug = baseSlug;
+    const { data: existing } = await supabase.from("projects").select("slug").eq("owner_clerk_user_id", user.id).like("slug", baseSlug + "%");
+    if ((existing ?? []).some((p) => p.slug === slug)) slug = baseSlug + "-" + Date.now().toString(36).slice(-6);
     const { data: project, error } = await supabase.from("projects").insert({ owner_clerk_user_id:user.id, name, slug, description:description||null, status:"draft" }).select("id,name,slug,description,status,created_at,updated_at").single();
     if (error) return Response.json({ error:error.message }, { status:500 });
-    await supabase.from("project_members").insert({ project_id:project.id, clerk_user_id:user.id, role:"owner" });
+    const { error: memberError } = await supabase.from("project_members").insert({ project_id:project.id, clerk_user_id:user.id, role:"owner" });
+    if (memberError) { await supabase.from("projects").delete().eq("id", project.id); return Response.json({ error:memberError.message }, { status:500 }); }
     return Response.json({ project }, { status:201 });
   } catch (error) {
     return Response.json({ error:error instanceof Error ? error.message:"UNAUTHORIZED" }, { status:401 });
