@@ -8,11 +8,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const supabase = createServerSupabaseClient();
     const { data: project, error } = await supabase.from("projects").select("*").eq("id", id).eq("owner_clerk_user_id", user.id).single();
     if (error || !project) return Response.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
-    const [{ data: messages }, { data: plans }] = await Promise.all([
+    const [{ data: messages }, { data: plans }, { data: files }, { data: deployments }] = await Promise.all([
       supabase.from("project_messages").select("id,role,content,metadata,created_at").eq("project_id", id).eq("clerk_user_id", user.id).order("created_at", { ascending: true }),
-      supabase.from("project_plans").select("*").eq("project_id", id).order("version", { ascending: false }).limit(1)
+      supabase.from("project_plans").select("*").eq("project_id", id).order("version", { ascending: false }).limit(1),
+      supabase.from("project_files").select("path,content,status,updated_at").eq("project_id", id).order("path"),
+      supabase.from("deployments").select("id,status,deployment_url,created_at").eq("project_id", id).order("created_at", { ascending: false }).limit(5)
     ]);
-    return Response.json({ project, messages: messages ?? [], plan: plans?.[0] ?? null });
+    return Response.json({ project, messages: messages ?? [], plan: plans?.[0] ?? null, files: files ?? [], deployments: deployments ?? [] });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "UNAUTHORIZED" }, { status: 401 });
   }
