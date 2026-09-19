@@ -1,2 +1,90 @@
-import { requireUser } from "@/lib/auth";import { createServerSupabaseClient } from "@/lib/supabase/server";import { getStoredVercelToken,createVercelDeployment } from "@/lib/vercel";
-export async function POST(request:Request,context:{params:Promise<{id:string}>}){try{const u=await requireUser();const {id}=await context.params;const s=createServerSupabaseClient();const {data:p}=await s.from("projects").select("*").eq("id",id).eq("owner_clerk_user_id",u.id).maybeSingle();if(!p)return Response.json({error:"PROJECT_NOT_FOUND"},{status:404});const {data:c}=await s.from("vercel_connections").select("encrypted_access_token").eq("clerk_user_id",u.id).maybeSingle();if(!c?.encrypted_access_token)return Response.json({error:"VERCEL_NOT_CONNECTED"},{status:400});const {data:files}=await s.from("project_files").select("path,content").eq("project_id",id).eq("status","generated");if(!files?.length)return Response.json({error:"BUILD_REQUIRED"},{status:400});const token=await getStoredVercelToken(c.encrypted_access_token);const body=await request.json().catch(()=>({}));const name=String(body.name||p.slug).toLowerCase().replace(/[^a-z0-9-]/g,"-").slice(0,80);const d=await createVercelDeployment(token,name,files.filter(f=>typeof f.content==="string").map(f=>({file:f.path,data:f.content as string})));await s.from("deployments").insert({project_id:id,clerk_user_id:u.id,provider:"vercel",status:d?.readyState==="READY"?"ready":"building",deployment_url:d?.url?`https://${d.url}`:null,external_id:d?.id||null,logs:d});await s.from("projects").update({status:d?.readyState==="READY"?"ready":"building",vercel_project_name:name,updated_at:new Date().toISOString()}).eq("id",id);return Response.json({ok:true,deployment:d,url:d?.url?`https://${d.url}`:null})}catch(e){return Response.json({error:e instanceof Error?e.message:"DEPLOY_FAILED"},{status:500})}}
+import { requireUser } from "@/lib/auth";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getStoredVercelToken, createVercelDeployment } from "@/lib/vercel";
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const u = await requireUser();
+    const { id } = await context.params;
+    const s = createServerSupabaseClient();
+
+    const { data: p } = await s
+      .from("projects")
+      .select("*")
+      .eq("id", id)
+      .eq("owner_clerk_user_id", u.id)
+      .maybeSingle();
+
+    if (!p) {
+      return Response.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
+    }
+
+    const { data: c } = await s
+      .from("vercel_connections")
+      .select("encrypted_access_token")
+      .eq("clerk_user_id", u.id)
+      .maybeSingle();
+
+    if (!c?.encrypted_access_token) {
+      return Response.json({ error: "VERCEL_NOT_CONNECTED" }, { status: 400 });
+    }
+
+    const { data: files } = await s
+      .from("project_files")
+      .select("path,content")
+      .eq("project_id", id)
+      .eq("status", "generated");
+
+    if (!files?.length) {
+      return Response.json({ error: "BUILD_REQUIRED" }, { status: 400 });
+    }
+
+    const token = await getStoredVercelToken(c.encrypted_access_token);
+    const body = await request.json().catch(() => ({}));
+    const name = String(body.name || p.slug)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .slice(0, 80);
+
+    const d = await createVercelDeployment(
+      token,
+      name,
+      files
+        .filter((f) => typeof f.content === "string")
+        .map((f) => ({ file: f.path, data: f.content as string })),
+    );
+
+    await s.from("deployments").insert({
+      project_id: id,
+      clerk_user_id: u.id,
+      provider: "vercel",
+      status: d?.readyState === "READY" ? "ready" : "building",
+      deployment_url: d?.url ? `https://${d.url}` : null,
+      external_id: d?.id || null,
+      logs: d,
+    });
+
+    await s
+      .from("projects")
+      .update({
+        status: d?.readyState === "READY" ? "ready" : "building",
+        vercel_project_name: name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    return Response.json({
+      ok: true,
+      deployment: d,
+      url: d?.url ? `https://${d.url}` : null,
+    });
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "DEPLOY_FAILED" },
+      { status: 500 },
+    );
+  }
+}
