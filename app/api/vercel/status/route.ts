@@ -1,0 +1,2 @@
+import { requireUser } from "@/lib/auth";import { createServerSupabaseClient } from "@/lib/supabase/server";
+export async function GET(){try{const u=await requireUser();const {data}=await createServerSupabaseClient().from("vercel_connections").select("vercel_user_id,created_at,updated_at").eq("clerk_user_id",u.id).maybeSingle();return Response.json({connected:!!data,connection:data?{vercel_user_id:data.vercel_user_id}:null})}catch(e){return Response.json({error:e instanceof Error?e.message:"UNAUTHORIZED"},{status:401})}}
