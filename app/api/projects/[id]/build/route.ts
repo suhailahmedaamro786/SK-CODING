@@ -18,6 +18,66 @@ function cleanJson(text: string) {
   }
 }
 
+function parseGeneratedFiles(raw: string): { files: GeneratedFile[] } {
+  try {
+    return cleanJson(raw);
+  } catch {}
+
+  const text = raw.trim().replace(/^\`\`\`(?:json)?/i, "").replace(/\`\`\`$/i, "").trim();
+  const start = text.indexOf('"files"');
+  if (start < 0) throw new Error("AI_INVALID_JSON: files array not found");
+
+  const arrayStart = text.indexOf("[", start);
+  if (arrayStart < 0) throw new Error("AI_INVALID_JSON: files array missing");
+
+  const files: GeneratedFile[] = [];
+  let objectStart = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = arrayStart + 1; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{") {
+      if (depth === 0) objectStart = i;
+      depth++;
+      continue;
+    }
+
+    if (ch === "}") {
+      depth--;
+      if (depth === 0 && objectStart >= 0) {
+        const candidate = text.slice(objectStart, i + 1);
+        try {
+          const parsed = JSON.parse(candidate) as GeneratedFile;
+          if (parsed && typeof parsed.path === "string" && typeof parsed.content === "string") {
+            files.push({ path: parsed.path, content: parsed.content });
+          }
+        } catch {}
+        objectStart = -1;
+      }
+    }
+
+    if (ch === "]" && depth === 0) break;
+  }
+
+  if (files.length < 1) throw new Error("AI_INVALID_JSON: no complete generated files found");
+  return { files };
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char] || char));
 }
@@ -175,7 +235,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
 
     let filesResult: any;
     try {
-      filesResult = cleanJson((await gateway.generateText({
+      filesResult = parseGeneratedFiles((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's senior multi-language software engineer. Do not ask questions. Follow the approved stack exactly." },
@@ -222,7 +282,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const minimumWebsiteFiles = ecommerce ? 14 : 8;
     if (generatedFiles.length < minimumWebsiteFiles) {
       await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "warn", message: ecommerce ? "E-commerce source was too small; requesting a complete multi-page source set." : "Generated source was too small; requesting a larger coherent source set." });
-      const expanded = cleanJson((await gateway.generateText({
+      const expanded = parseGeneratedFiles((await gateway.generateText({
         userId: user.id, projectId: id, taskType: "code_generation",
         messages: [
           { role: "system", content: "Return JSON only. You are a senior product engineer. Do not ask questions. Generate a complete runnable website, not a mockup." },
