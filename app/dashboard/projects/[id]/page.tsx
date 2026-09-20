@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Code2, FileCode2, FolderTree, Github, Moon, Rocket, Send, Sparkles, Sun, X } from "lucide-react";
+import { Bot, Code2, FileCode2, FolderTree, Github, Moon, Rocket, Send, Sparkles, Sun, X, ExternalLink, RefreshCw, Menu, PanelLeft } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 type FileItem = { path: string; content: string; status: string };
@@ -22,7 +22,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const [error, setError] = useState("");
   const [selected, setSelected] = useState("");
   const [preview, setPreview] = useState("");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [buildStatus, setBuildStatus] = useState("ready");
   const [buildLogs, setBuildLogs] = useState<{ message: string; level: string }[]>([]);
@@ -152,21 +152,22 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
   return (
     <main className={(dark ? "bg-[#07080c] text-zinc-100" : "bg-slate-100 text-slate-900") + " min-h-screen transition-colors duration-300"}>
-      <header className={(dark ? "border-white/10 bg-[#08090d]/95" : "border-slate-200 bg-white/95") + " sticky top-0 z-50 flex min-h-[68px] items-center gap-2 border-b px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,.08)] backdrop-blur-xl sm:px-6"}>
+      <header className={(dark ? "border-white/10 bg-[#08090d]/95" : "border-slate-200 bg-white/95") + " sticky top-0 z-50 flex min-h-[68px] items-center gap-2 border-b px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,.08)] backdrop-blur-xl sm:px-5"}>
+        <button aria-label="Workspace menu" className={(dark ? "text-zinc-500 hover:bg-white/5" : "text-slate-500 hover:bg-slate-100") + " rounded-lg p-2 transition"}><Menu size={17} /></button>
         <Link href="/dashboard/projects" className="flex shrink-0 items-center gap-2.5 font-bold">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/25"><Sparkles size={16} /></span>
           <span className="hidden sm:block">SK Builder</span>
         </Link>
         <span className={dark ? "text-zinc-700" : "text-slate-300"}>/</span>
         <span className={dark ? "text-zinc-700" : "text-slate-300"}>·</span><span className="min-w-0 max-w-[34vw] truncate text-xs font-semibold sm:max-w-[180px] sm:text-sm">{project?.name || "Workspace"}</span><span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-400 sm:inline">{busy ? "Building" : project?.status || "Ready"}</span>
-        <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-2">
+        <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1.5">
           <Link href="/dashboard/integrations" className="hidden rounded-lg px-3 py-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-violet-400 sm:block">Connections</Link>
           {hasGithub ? (
             <button onClick={syncGithub} className="rounded-lg p-2 text-violet-400 transition hover:bg-violet-500/10" title="Sync to GitHub"><Github size={17} /></button>
           ) : (
             <Link href="/dashboard/integrations" className="rounded-lg p-2 text-zinc-500 transition hover:bg-violet-500/10 hover:text-violet-400" title="Connect GitHub"><Github size={17} /></Link>
           )}
-          <button onClick={() => setTheme(dark ? "light" : "dark")} className="rounded-lg p-2 text-zinc-500 transition hover:bg-violet-500/10 hover:text-violet-400" title="Toggle theme">
+          <button onClick={() => setTheme(dark ? "light" : "dark")} className={(dark ? "text-zinc-500 hover:bg-white/5" : "text-slate-500 hover:bg-slate-100") + " rounded-lg p-2 transition hover:text-violet-500"} title="Toggle theme">
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </button>
           <UserButton />
@@ -259,8 +260,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
           </div>
         </aside>
 
-        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-2 min-h-[520px] min-w-0 overflow-hidden lg:min-h-[calc(100dvh-68px-60px)] lg:order-2"}>
-          <div className={(dark ? "border-white/10 bg-[#0d0e13]" : "border-slate-200 bg-white") + " flex h-14 items-center gap-2 border-b px-3 sm:px-4"}>
+        <section className={(dark ? "bg-[#101217]" : "bg-[#f7f8fc]") + " order-2 min-h-[520px] min-w-0 overflow-hidden lg:min-h-[calc(100dvh-68px-60px)] lg:order-2"}>
+          <div className={(dark ? "border-white/10 bg-[#0d0e13]" : "border-slate-200 bg-white") + " flex h-14 items-center gap-2 border-b px-3 shadow-sm sm:px-4"}>
             <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-400"><Sparkles size={13} /> PREVIEW</div>
             <span className="hidden text-[11px] text-zinc-500 sm:block">Live website preview</span>
             <div className="ml-auto flex items-center gap-1">
@@ -306,9 +307,9 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
               )}
             </div>
 
-            <div className="mx-auto mt-3 flex w-full max-w-[900px] flex-wrap items-center justify-center gap-2 px-1 sm:px-0">
-              <button onClick={() => setInspector(inspector === "files" ? null : "files")} className={(inspector === "files" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><FolderTree size={13} /> Files {fileCount ? "(" + fileCount + ")" : ""}</button>
-              <button onClick={() => setInspector(inspector === "code" ? null : "code")} className={(inspector === "code" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><Code2 size={13} /> Code</button>
+            <div className={(dark ? "text-zinc-400" : "text-slate-500") + " mx-auto mt-3 flex w-full max-w-[900px] flex-wrap items-center justify-center gap-2 px-1 sm:px-0"}>
+              <button onClick={() => setInspector(inspector === "files" ? null : "files")} className={(inspector === "files" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 bg-white text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><FolderTree size={13} /> Files {fileCount ? "(" + fileCount + ")" : ""}</button>
+              <button onClick={() => setInspector(inspector === "code" ? null : "code")} className={(inspector === "code" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 bg-white text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><Code2 size={13} /> Code</button>
               <span className="hidden text-[10px] text-zinc-600 md:inline">Click Files or Code — no permanent folder sidebar.</span>
             </div>
           </div>
