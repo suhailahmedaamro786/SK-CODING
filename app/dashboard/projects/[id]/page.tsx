@@ -37,7 +37,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       const queuedPrompt = new URLSearchParams(window.location.search).get("prompt");
       if (queuedPrompt) {
         window.history.replaceState({}, "", window.location.pathname);
-        setTimeout(() => sendPrompt(queuedPrompt), 150);
+        setTimeout(() => sendPrompt(queuedPrompt, p.id), 150);
       }
     });
   }, []);
@@ -64,7 +64,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
     if (!selected && d.files?.[0]) setSelected(d.files[0].path);
   }
 
-  async function sendPrompt(initialPrompt?: string) {
+  async function sendPrompt(initialPrompt?: string, projectId = id) {
     const text = (initialPrompt ?? prompt).trim();
     if (!text || busy) return;
     setBusy(true);
@@ -73,7 +73,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
     const poll = setInterval(async () => {
       try {
-        const s = await fetch("/api/projects/" + id + "/build/status");
+        const s = await fetch("/api/projects/" + projectId + "/build/status");
         const d = await s.json();
         if (s.ok) {
           setBuildStatus(d.project?.status || "building");
@@ -86,7 +86,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
     try {
       setBuildStatus(files.length ? "editing" : "planning");
-      const r = await fetch("/api/projects/" + id + (files.length ? "/edit" : "/build"), {
+      const r = await fetch("/api/projects/" + projectId + (files.length ? "/edit" : "/build"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ prompt: text }),
@@ -98,7 +98,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       }
       setPrompt("");
       if (d.previewHtml) setPreview(d.previewHtml);
-      await load(id);
+      await load(projectId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI task failed");
     } finally {
@@ -256,7 +256,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
                 <button type="button" className={(dark ? "text-zinc-400 hover:bg-white/5" : "text-slate-600 hover:bg-slate-100") + " flex items-center gap-1 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition"}>Build <ChevronDown size={13}/></button>
                 <span className="flex-1"/>
                 <button type="button" aria-label="Voice input" className={(dark ? "text-zinc-500 hover:bg-white/5" : "text-slate-500 hover:bg-slate-100") + " rounded-lg p-2 transition"}><Mic size={16}/></button>
-                <button onClick={sendPrompt} disabled={busy || !prompt.trim()} aria-label={busy ? "Building" : "Send prompt"} className="grid h-9 w-9 place-items-center rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-30">
+                <button onClick={() => sendPrompt()} disabled={busy || !prompt.trim()} aria-label={busy ? "Building" : "Send prompt"} className="grid h-9 w-9 place-items-center rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-30">
                   {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"/> : <Send size={15}/>}
                 </button>
               </div>
