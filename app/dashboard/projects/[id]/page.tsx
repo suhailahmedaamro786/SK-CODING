@@ -184,7 +184,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       )}
 
       <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] lg:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
-        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-2 flex min-h-[calc(100vh-68px-60px)] flex-col overflow-hidden border-b lg:order-1 lg:border-b-0 lg:border-r"}>
+        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-1 flex h-[calc(100vh-68px-60px)] flex-col overflow-hidden border-b lg:border-b-0 lg:border-r"}>
           <div className={(dark ? "border-white/10" : "border-slate-200") + " border-b px-5 py-4"}>
             <div className="flex items-center justify-between">
               <div>
@@ -259,7 +259,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
           </div>
         </aside>
 
-        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-1 min-h-[calc(100vh-68px-60px)] min-w-0 overflow-hidden lg:order-2"}>
+        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-2 min-h-[calc(100vh-68px-60px)] min-w-0 overflow-hidden lg:order-2"}>
           <div className={(dark ? "border-white/10 bg-[#0d0e13]" : "border-slate-200 bg-white") + " flex h-14 items-center gap-2 border-b px-3 sm:px-4"}>
             <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-400"><Sparkles size={13} /> PREVIEW</div>
             <span className="hidden text-[11px] text-zinc-500 sm:block">Live website preview</span>
