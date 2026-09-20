@@ -60,18 +60,29 @@ class AnthropicAdapter implements AIProviderAdapter {
 class GeminiAdapter implements AIProviderAdapter {
   readonly provider = "gemini" as const;
   async generateText(request: AIRequest, secret: string): Promise<AIResponse> {
-    const requestedModel = request.options?.model || request.modelPreference || "gemini-3.6-flash";
-    // Gemini 2.5 Flash may be unavailable to newly provisioned API users; keep existing saved configs working by migrating that specific default to the current stable Flash model.
-    const model = requestedModel === "gemini-2.5-flash" || requestedModel === "models/gemini-2.5-flash" ? "gemini-3.6-flash" : requestedModel;
+    const requestedModel = request.options?.model || request.modelPreference || "gemini-3.8-flash";
+    // Migrate retired/legacy saved Flash defaults and keep a small provider-local failover chain for temporary capacity spikes.
+    const normalizedModel = requestedModel === "gemini-2.5-flash" || requestedModel === "models/gemini-2.5-flash" ? "gemini-3.8-flash" : requestedModel;
+    const modelCandidates = [normalizedModel, "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"].filter((m, i, a) => a.indexOf(m) === i);
     const contents = request.messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
     const system = request.messages.find((m) => m.role === "system")?.content;
-    const body = await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(secret)}`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ systemInstruction: system ? { parts: [{ text: system }] } : undefined, contents }),
-    });
-    const text = body?.candidates?.[0]?.content?.parts?.map((p: {text?: string}) => p.text || "").join("") || "";
-    if (!text) throw new Error("EMPTY_AI_RESPONSE");
-    return { provider: "gemini", model, text, usage: { inputTokens: body?.usageMetadata?.promptTokenCount, outputTokens: body?.usageMetadata?.candidatesTokenCount } };
+    let lastError: unknown;
+    for (const model of modelCandidates) {
+      try {
+        const body = await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(secret)}`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ systemInstruction: system ? { parts: [{ text: system }] } : undefined, contents }),
+        });
+        const text = body?.candidates?.[0]?.content?.parts?.map((p: {text?: string}) => p.text || "").join("") || "";
+        if (!text) throw new Error("EMPTY_AI_RESPONSE");
+        return { provider: "gemini", model, text, usage: { inputTokens: body?.usageMetadata?.promptTokenCount, outputTokens: body?.usageMetadata?.candidatesTokenCount } };
+      } catch (error) {
+        lastError = error;
+        const status = (error as Error & { status?: number }).status;
+        if (status !== 408 && status !== 409 && status !== 425 && status !== 429 && status !== 500 && status !== 502 && status !== 503 && status !== 504) throw error;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("GEMINI_ALL_MODELS_FAILED");
   }
   async generateStructuredOutput<T>(request: AIRequest, secret: string): Promise<T> {
     return JSON.parse(cleanJson((await this.generateText(request, secret)).text)) as T;
