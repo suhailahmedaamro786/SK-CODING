@@ -34,7 +34,62 @@ function premiumPreview(projectName: string, prompt: string, pages: unknown) {
 
 function isPremiumPreview(html: string) {
   const lower = html.toLowerCase();
-  return html.length > 1800 && lower.includes("<style") && lower.includes("<nav") && lower.includes('<meta name="viewport"');
+  const styleMatch = html.match(/<style[^>]*>([\\s\\S]*?)<\\/style>/i);
+  const css = styleMatch?.[1] || "";
+  return html.length > 2200 &&
+    lower.includes("<style") &&
+    css.length > 900 &&
+    css.includes("{") &&
+    css.includes("}") &&
+    /(^|[\\n}])\\s*(body|html|\\*)\\s*\\{/i.test(css) &&
+    lower.includes("<nav") &&
+    lower.includes('<meta name="viewport"');
+}
+
+function ecommercePreview(projectName: string, prompt: string) {
+  const items = [
+    ["Nova Wireless Headphones", "$129", "Audio", "★★★★★"],
+    ["Minimal Smart Watch", "$189", "Wearables", "★★★★☆"],
+    ["Everyday Leather Backpack", "$89", "Accessories", "★★★★★"],
+    ["Studio Desk Lamp", "$64", "Home", "★★★★☆"],
+    ["Aero Running Sneakers", "$119", "Fashion", "★★★★★"],
+    ["MagSafe Travel Charger", "$49", "Electronics", "★★★★☆"]
+  ];
+  const cards = items.map(([name, price, category, rating]) =>
+    `<article class="product"><div class="product-image"><span>${category}</span><b>NEW</b></div><div class="product-body"><div class="category">${category}</div><h3>${name}</h3><div class="rating">${rating}</div><div class="price">${price}</div><button>Add to cart</button></div></article>`
+  ).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(projectName)}</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;color:#111827}a{text-decoration:none;color:inherit}.topbar{background:#111827;color:#fff;text-align:center;padding:9px;font-size:12px}.shell{max-width:1280px;margin:auto;padding:0 28px}.header{height:76px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e5e7eb}.logo{font-size:22px;font-weight:900;letter-spacing:-.04em}.nav{display:flex;gap:22px;font-size:13px;color:#64748b}.search{margin-left:auto;border:1px solid #dbe1ea;background:#fff;border-radius:12px;padding:10px 14px;width:220px;color:#94a3b8}.cart{font-weight:800}.hero{margin:28px 0;padding:46px;border-radius:26px;background:linear-gradient(135deg,#111827,#4338ca);color:#fff;display:grid;grid-template-columns:1.3fr .7fr;gap:30px;overflow:hidden}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:#c4b5fd;font-weight:800}.hero h1{font-size:48px;line-height:1.03;letter-spacing:-.05em;margin:10px 0 14px}.hero p{color:#dbe4f0;max-width:600px;line-height:1.7}.hero button,.product button{border:0;border-radius:11px;padding:11px 16px;font-weight:800;cursor:pointer}.hero button{background:#fff;color:#312e81;margin-top:10px}.hero-art{border-radius:22px;background:linear-gradient(145deg,#818cf8,#c4b5fd);min-height:230px;box-shadow:inset 0 0 80px #fff4}.section-head{display:flex;align-items:end;justify-content:space-between;margin:34px 0 16px}.section-head h2{margin:0;font-size:22px}.section-head span{font-size:12px;color:#64748b}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.product{background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px #0f172a0a;transition:.2s}.product:hover{transform:translateY(-3px);box-shadow:0 18px 40px #0f172a16}.product-image{height:190px;background:linear-gradient(135deg,#e0e7ff,#f5f3ff);display:flex;align-items:flex-end;justify-content:space-between;padding:14px;color:#4338ca}.product-image b{font-size:9px;background:#fff;padding:5px 7px;border-radius:999px}.category{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#7c3aed;font-weight:800}.product-body{padding:16px}.product h3{font-size:15px;margin:7px 0}.rating{font-size:11px;color:#f59e0b}.price{font-size:20px;font-weight:900;margin:10px 0}.product button{width:100%;background:#111827;color:#fff}.footer{margin:46px 0 25px;border-top:1px solid #e5e7eb;padding-top:20px;color:#64748b;font-size:11px;display:flex;justify-content:space-between}@media(max-width:800px){.shell{padding:0 16px}.nav{display:none}.search{width:auto}.hero{grid-template-columns:1fr;padding:30px}.hero h1{font-size:36px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.header{gap:12px}.logo{font-size:19px}.search{display:none}.hero{margin-top:16px}.hero h1{font-size:32px}.grid{grid-template-columns:1fr}.footer{display:block}.footer span{display:block;margin-top:8px}}
+</style></head><body><div class="topbar">✨ Free Express Shipping on Orders Over $50 · Use code <b>NOVAFREE</b></div><div class="shell"><header class="header"><div class="logo">${escapeHtml(projectName)}</div><nav class="nav"><a href="#">Home</a><a href="#">Shop</a><a href="#">Categories</a><a href="#">Deals</a></nav><div class="search">⌕ Search products…</div><div class="cart">♡ 2 · 🛒 3</div></header><section class="hero"><div><div class="eyebrow">New season collection</div><h1>Everything you need. Beautifully curated.</h1><p>${escapeHtml(prompt).slice(0,180)}</p><button>Shop collection →</button></div><div class="hero-art"></div></section><div class="section-head"><h2>Featured products</h2><span>12+ products · Multiple categories</span></div><section class="grid">${cards}</section><footer class="footer"><b>${escapeHtml(projectName)}</b><span>Secure checkout · Fast delivery · Easy returns</span></footer></div></body></html>`;
+}
+
+function foundationOk(items: GeneratedFile[]) {
+  const paths = new Set(items.map((f) => f.path));
+  const hasNext = paths.has("package.json") &&
+    ((paths.has("app/layout.tsx") || paths.has("app/layout.jsx") || paths.has("src/app/layout.tsx") || paths.has("src/app/layout.jsx")) &&
+     (paths.has("app/page.tsx") || paths.has("app/page.jsx") || paths.has("src/app/page.tsx") || paths.has("src/app/page.jsx")));
+  const hasReact = paths.has("package.json") && Array.from(paths).some((p) => p === "src/main.tsx" || p === "src/main.jsx" || p === "main.tsx" || p === "main.jsx");
+  const hasPython = Array.from(paths).some((p) => p === "main.py" || p === "app.py" || p.endsWith("/main.py") || p.endsWith("/app.py")) && paths.has("requirements.txt");
+  const hasStatic = paths.has("index.html") && Array.from(paths).some((p) => p === "style.css" || p === "styles.css" || p.endsWith("/style.css") || p.endsWith("/styles.css"));
+  return hasNext || hasReact || hasPython || hasStatic;
+}
+
+function normalizeFoundation(items: GeneratedFile[], technology: unknown, projectName: string): GeneratedFile[] {
+  const out = [...items];
+  const paths = new Set(out.map((f) => f.path));
+  const tech = JSON.stringify(technology || {}).toLowerCase();
+  const looksNext = tech.includes("next") || paths.has("app/page.tsx") || paths.has("app/page.jsx") || paths.has("src/app/page.tsx") || paths.has("src/app/page.jsx");
+
+  if (looksNext) {
+    if (!paths.has("package.json")) {
+      out.push({ path: "package.json", content: JSON.stringify({ name: repoName(projectName), private: true, scripts: { dev: "next dev", build: "next build", start: "next start" }, dependencies: { next: "latest", react: "latest", "react-dom": "latest" }, devDependencies: { typescript: "latest", "@types/node": "latest", "@types/react": "latest", "@types/react-dom": "latest" } }, null, 2) });
+    }
+    const hasLayout = paths.has("app/layout.tsx") || paths.has("app/layout.jsx") || paths.has("src/app/layout.tsx") || paths.has("src/app/layout.jsx");
+    const pagePath = paths.has("app/page.tsx") || paths.has("app/page.jsx") ? "app/page.tsx" : (paths.has("src/app/page.tsx") || paths.has("src/app/page.jsx") ? "src/app/page.tsx" : "");
+    const layoutPath = pagePath.startsWith("src/") ? "src/app/layout.tsx" : "app/layout.tsx";
+    if (!hasLayout && pagePath) out.push({ path: layoutPath, content: `export default function RootLayout({ children }: { children: React.ReactNode }) { return <html lang="en"><body>{children}</body></html>; }` });
+  }
+  return out.filter((f, i, arr) => arr.findIndex((x) => x.path === f.path) === i).slice(0, 32);
 }
 
 function repoName(name: string) {
@@ -106,7 +161,10 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     })).text);
     const parsedPlan = design.plan || {};
     const generatedPreview = safePreview(design.previewHtml);
-    const previewHtml = isPremiumPreview(generatedPreview) ? generatedPreview : premiumPreview(project.name, prompt, parsedPlan.pages);
+    const ecommerce = /e[- ]?commerce|shop|store|products|cart|checkout|online shopping/i.test(prompt);
+    const previewHtml = isPremiumPreview(generatedPreview)
+      ? generatedPreview
+      : (ecommerce ? ecommercePreview(project.name, prompt) : premiumPreview(project.name, prompt, parsedPlan.pages));
     await supabase.from("projects").update({ preview_html: previewHtml || null, specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt }, architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString() }).eq("id", id);
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 2/5: preview ready. Generating source files." });
 
@@ -156,6 +214,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       filesResult = retry;
     }
 
+    generatedFiles = normalizeFoundation(generatedFiles, parsedPlan.technology, project.name);
     const result = { plan: parsedPlan, files: generatedFiles, previewHtml };
 
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 3/5: saving generated project files." });
@@ -175,7 +234,11 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString()
     }).eq("id", id);
 
-    const merged = safeFiles(result.files).filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32);
+    const merged = normalizeFoundation(
+      safeFiles(result.files).filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32),
+      parsedPlan.technology,
+      project.name
+    );
     if (!foundationOk(merged)) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
     if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
 
