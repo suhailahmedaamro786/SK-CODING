@@ -39,6 +39,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { data: project } = await supabase.from("projects").select("*").eq("id", id).eq("owner_clerk_user_id", user.id).maybeSingle();
     if (!project) return Response.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
 
+    // Persist the user request immediately so the chat never loses what was asked.
+    await supabase.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "user", content: prompt });
+
     const { data: providers } = await supabase.from("ai_providers").select("provider,model,priority").eq("clerk_user_id", user.id).eq("enabled", true).order("priority");
     const configured: any[] = [];
     for (const p of providers || []) {
@@ -82,7 +85,7 @@ Add feature pages/components/API/types/README as useful; aim for 8-32 coherent f
 previewHtml must be a polished static HTML/CSS representation of the requested website, with no script tags, no external dependencies and no secrets. It is only for the SK Builder preview pane.
 Every generated file must be compile-ready. No markdown fences. No .env files.` }
       ],
-      options: { maxTokens: 18000, temperature: 0.1 }
+      options: { maxTokens: 12000, temperature: 0.1 }
     })).text);
 
     const parsedPlan = result.plan || {};
@@ -137,6 +140,7 @@ Every generated file must be compile-ready. No markdown fences. No .env files.` 
 
     await supabase.from("project_plans").update({ status: "completed" }).eq("id", plan.id);
     await supabase.from("projects").update({ status: "ready", updated_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "assistant", content: `Build completed successfully. Generated ${merged.length} files and a live preview.` });
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: `Build completed: ${merged.length} files generated.${token ? " GitHub synced." : " GitHub not connected; kept in workspace."}` });
     return Response.json({ ok: true, repository: fullName ? { full_name: fullName, url: repoUrl } : null, githubSynced: Boolean(token), previewHtml, files: merged.map(f => f.path) });
   } catch (error) {
@@ -144,6 +148,7 @@ Every generated file must be compile-ready. No markdown fences. No .env files.` 
     try {
       const user = await requireUser(); const { id } = await context.params; const s = createServerSupabaseClient();
       await s.from("projects").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", id).eq("owner_clerk_user_id", user.id);
+      await s.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "assistant", content: `Build failed: ${message}` });
       await s.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "error", message });
     } catch {}
     return Response.json({ error: message }, { status: 500 });
