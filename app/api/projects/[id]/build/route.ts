@@ -55,74 +55,59 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (connection?.encrypted_access_token) token = await getStoredGithubToken(connection.encrypted_access_token);
 
     const gateway = new AIGateway(configured);
-    let { data: plan } = await supabase.from("project_plans").select("*").eq("project_id", id).order("version", { ascending: false }).limit(1).maybeSingle();
 
-    if (!plan) {
-      const planText = await gateway.generateText({
-        userId: user.id, projectId: id, taskType: "planning",
-        messages: [
-          { role: "system", content: "Return JSON only. You are SK Builder's product architect." },
-          { role: "user", content: `Create a practical MVP plan from this user's request. Do not ask questions. Make reasonable minimal assumptions. Use Next.js App Router, TypeScript, Tailwind and Supabase where useful. Return keys: summary, architecture, technology, pages, components, database_entities, apis, security, testing, deployment, tasks. User request: ${prompt}` }
-        ],
-        options: { maxTokens: 5000, temperature: 0.1 }
-      });
-      const parsed = cleanJson(planText.text);
-      const inserted = await supabase.from("project_plans").insert({
-        project_id: id, version: 1, status: "draft",
-        architecture: parsed.architecture ?? null, technology: parsed.technology ?? null,
-        pages: parsed.pages ?? null, components: parsed.components ?? null,
-        database_entities: parsed.database_entities ?? null, apis: parsed.apis ?? null,
-        security: parsed.security ?? null, testing: parsed.testing ?? null,
-        deployment: parsed.deployment ?? null, tasks: parsed.tasks ?? []
-      }).select("*").single();
-      if (inserted.error) throw new Error(inserted.error.message);
-      plan = inserted.data;
-      await supabase.from("projects").update({
-        status: "planning", specification: { summary: parsed.summary ?? "", initial_prompt: prompt },
-        architecture: parsed.architecture ?? null, updated_at: new Date().toISOString()
-      }).eq("id", id);
-    }
-
+    // Keep the build inside one AI request so production/serverless builds do not sit on
+    // multiple sequential model calls.
     await supabase.from("projects").update({ status: "building", updated_at: new Date().toISOString() }).eq("id", id);
-    await supabase.from("project_plans").update({ status: "executing" }).eq("id", plan.id);
 
-    const common = `Project: ${project.name}
-Original description: ${project.description || ""}
-User request: ${prompt}
-Plan: ${JSON.stringify(plan)}
-Generate production-minded, compile-ready code. No secrets. No .env. Use only dependencies declared in package.json.`;
+    const common = `Project: \${project.name}
+Original description: \${project.description || ""}
+User request: \${prompt}
+Generate a practical MVP, make reasonable assumptions, and do not ask questions.`;
 
-    const core = cleanJson((await gateway.generateText({
+    const result = cleanJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
-        { role: "system", content: "Return JSON only." },
-        { role: "user", content: `You are the senior engineer in SK Builder. ${common}
-Generate a complete coherent Next.js application and a browser-safe visual preview.
-Return ONLY {"files":[{"path":"...","content":"..."}],"previewHtml":"..."}.
-Required files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx.
+        { role: "system", content: "Return JSON only. You are the senior product architect and engineer in SK Builder." },
+        { role: "user", content: `\${common}
+Return ONLY this JSON shape:
+{
+  "plan": { "summary": "...", "architecture": {}, "technology": {}, "pages": [], "components": [], "database_entities": [], "apis": [], "security": [], "testing": [], "deployment": [], "tasks": [] },
+  "files": [{"path":"...","content":"..."}],
+  "previewHtml": "..."
+}
+Build a complete coherent Next.js App Router application using TypeScript and Tailwind.
+Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx.
+Add feature pages/components/API/types/README as useful; aim for 8-32 coherent files.
 previewHtml must be a polished static HTML/CSS representation of the requested website, with no script tags, no external dependencies and no secrets. It is only for the SK Builder preview pane.
-Use Next.js App Router, TypeScript and Tailwind. It must run with npm install && npm run build. No markdown fences.` }
+Every generated file must be compile-ready. No markdown fences. No .env files.` }
       ],
-      options: { maxTokens: 11000, temperature: 0.1 }
+      options: { maxTokens: 18000, temperature: 0.1 }
     })).text);
 
-    const features = cleanJson((await gateway.generateText({
-      userId: user.id, projectId: id, taskType: "code_generation",
-      messages: [
-        { role: "system", content: "Return JSON only." },
-        { role: "user", content: `You are the implementation engineer in SK Builder. ${common}
-The foundation is generated separately. Return ONLY {"files":[{"path":"...","content":"..."}]}.
-Generate additional feature files, components, pages, types, API routes where useful and README. Do not repeat package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx. Keep it compile-ready.` }
-      ],
-      options: { maxTokens: 9000, temperature: 0.1 }
-    })).text);
+    const parsedPlan = result.plan || {};
+    const inserted = await supabase.from("project_plans").insert({
+      project_id: id, version: 1, status: "executing",
+      architecture: parsedPlan.architecture ?? null, technology: parsedPlan.technology ?? null,
+      pages: parsedPlan.pages ?? null, components: parsedPlan.components ?? null,
+      database_entities: parsedPlan.database_entities ?? null, apis: parsedPlan.apis ?? null,
+      security: parsedPlan.security ?? null, testing: parsedPlan.testing ?? null,
+      deployment: parsedPlan.deployment ?? null, tasks: parsedPlan.tasks ?? []
+    }).select("*").single();
+    if (inserted.error) throw new Error(inserted.error.message);
+    const plan = inserted.data;
 
-    const merged = [...safeFiles(core.files), ...safeFiles(features.files)]
-      .filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32);
+    await supabase.from("projects").update({
+      status: "building", specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt },
+      architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString()
+    }).eq("id", id);
+
+    const merged = safeFiles(result.files).filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32);
     const required = ["package.json", "tsconfig.json", "next-env.d.ts", "app/layout.tsx", "app/globals.css", "app/page.tsx"];
     if (required.some(p => !merged.some(f => f.path === p))) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
     if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
 
+    const previewHtml = safePreview(result.previewHtml);
     // If GitHub is connected, create/sync the repository. Otherwise keep the project in SK Builder.
     if (token) {
       if (!fullName) {
