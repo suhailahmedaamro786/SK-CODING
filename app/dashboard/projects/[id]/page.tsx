@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Code2, ExternalLink, Github, Moon, Rocket, Send, Sparkles, Sun, Terminal, UserRound, Wand2 } from "lucide-react";
+import { Bot, Code2, Github, Moon, Rocket, Send, Sparkles, Sun, Wand2, FolderTree, X } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 type FileItem={path:string;content:string;status:string};
@@ -27,7 +27,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   const [device,setDevice]=useState<"desktop"|"tablet"|"mobile">("desktop");
   const [buildStatus,setBuildStatus]=useState("ready");
   const [buildLogs,setBuildLogs]=useState<{message:string;level:string}[]>([]);
-  const [fileCount,setFileCount]=useState(0);
+  const [fileCount,setFileCount]=useState(0);\n  const [inspector,setInspector]=useState<"code"|"files"|null>(null);
 
   useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
   async function load(projectId:string){
@@ -126,7 +126,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
       {error&&<div className="mx-3 mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300 sm:mx-5">{error}<Link href="/dashboard/integrations" className="ml-2 underline">Connections</Link></div>}
 
       <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section className={(theme==="dark"?"border-white/10 bg-[#101217]":"border-slate-200 bg-slate-50")+" min-w-0 border-r"}>
+        <section className={(theme==="dark"?"border-white/10 bg-[#101217]":"border-slate-200 bg-slate-50")+" order-1 min-w-0 border-l lg:order-2"}>
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" flex h-12 items-center gap-1 border-b px-3"}>
             <button onClick={()=>setTab("preview")} className={"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition "+(tab==="preview"?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}><Wand2 size={13}/> PREVIEW</button>
             <span className="hidden text-[10px] text-zinc-500 sm:inline">Live website preview</span>
@@ -144,7 +144,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
           </div>}
         </section>
 
-        <aside className={(theme==="dark"?"border-white/10 bg-[#090a0e]":"border-slate-200 bg-white")+" flex min-h-[620px] flex-col border-t lg:border-t-0"}>
+        <aside className={(theme==="dark"?"border-white/10 bg-[#090a0e]":"border-slate-200 bg-white")+" order-2 flex min-h-[620px] flex-col border-t lg:order-1 lg:border-t-0"}>
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" border-b p-4"}>
             <div className="flex items-center justify-between"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.25em] text-violet-400"><Bot size={14}/> AI BUILDER</div><p className="mt-1 text-xs text-zinc-500">Build, edit, refine — no questionnaire.</p></div><span className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/10 text-violet-400"><Sparkles size={14}/></span></div>
           </div>
