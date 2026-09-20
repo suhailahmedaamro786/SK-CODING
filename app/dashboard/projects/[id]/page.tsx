@@ -24,12 +24,15 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   const [preview,setPreview]=useState("");
   const [tab,setTab]=useState<"preview"|"code">("preview");
   const [theme,setTheme]=useState<"dark"|"light">("dark");
+  const [buildStatus,setBuildStatus]=useState("ready");
+  const [buildLogs,setBuildLogs]=useState<{message:string;level:string}[]>([]);
+  const [fileCount,setFileCount]=useState(0);
 
   useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
   async function load(projectId:string){
     const r=await fetch("/api/projects/"+projectId); const d=await r.json();
     if(!r.ok){setError(d.error||"Could not load project");return}
-    setProject(d.project); setFiles(d.files||[]); setMessages(d.messages||[]);
+    setProject(d.project); setFiles(d.files||[]); setFileCount((d.files||[]).length); setMessages(d.messages||[]);
     if(d.project?.preview_html)setPreview(d.project.preview_html);
     const live=(d.deployments||[]).find((x:Deployment)=>x.deployment_url);
     if(live?.deployment_url)setPreview(live.deployment_url);
@@ -40,7 +43,21 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
     const text=prompt.trim(); if(!text||busy)return;
     setBusy(true);setError("");
     setMessages(prev=>[...prev,{id:`local-${Date.now()}`,role:"user",content:text,created_at:new Date().toISOString()}]);
+    let poll: ReturnType<typeof setInterval> | undefined;
     try{
+      setBuildStatus(files.length ? "editing" : "planning");
+      poll=setInterval(async()=>{
+        try{
+          const s=await fetch("/api/projects/"+id+"/build/status");
+          const d=await s.json();
+          if(s.ok){
+            setBuildStatus(d.project?.status || "building");
+            setBuildLogs(d.logs || []);
+            setFileCount(d.fileCount || 0);
+            if(d.project?.preview_html) setPreview(d.project.preview_html);
+          }
+        }catch{}
+      },1200);
       const r=await fetch("/api/projects/"+id+(files.length?"/edit":"/build"),{
         method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:text})
       });
@@ -52,7 +69,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
       setPrompt("");
       if(d.previewHtml)setPreview(d.previewHtml);
       await load(id);
-    }catch(e){setError(e instanceof Error?e.message:"AI task failed")}finally{setBusy(false)}
+    }catch(e){setError(e instanceof Error?e.message:"AI task failed")}finally{if(poll) clearInterval(poll);setBusy(false)}
   }
 
   async function syncGithub(){
@@ -132,7 +149,14 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" border-b p-4"}>
             <div className="flex items-center justify-between"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.25em] text-violet-400"><Bot size={14}/> AI BUILDER</div><p className="mt-1 text-xs text-zinc-500">Build, edit, refine — no questionnaire.</p></div><span className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/10 text-violet-400"><Sparkles size={14}/></span></div>
           </div>
-          <div className="flex-1 space-y-3 overflow-auto p-4">
+          <div className="flex-1 space-y-3 overflow-auto p-4">          {busy&&<div className="mb-3 rounded-2xl border border-white/10 bg-white/[.03] p-3">
+            <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-zinc-500"><span>Build pipeline</span><span>{fileCount} files</span></div>
+            <div className="grid grid-cols-5 gap-1">
+              {["Planning","Preview","Coding","Review","Ready"].map((s,i)=><div key={s} className={"rounded-md px-1 py-1.5 text-center text-[9px] "+(i===0&&buildStatus==="planning"||i===1&&buildStatus==="building"||i>=2&&buildStatus==="building"?"bg-violet-500/20 text-violet-300":"bg-white/5 text-zinc-600")}>{s}</div>)}
+            </div>
+            {buildLogs.slice(-3).map((l,i)=><p key={i} className="mt-2 truncate text-[10px] text-zinc-600">• {l.message}</p>)}
+          </div>}
+
             {busy&&<div className="rounded-2xl border border-violet-500/20 bg-violet-500/[.06] p-3"><div className="flex items-center gap-2 text-xs font-medium text-violet-400"><span className="h-2 w-2 animate-pulse rounded-full bg-violet-400"/>{files.length?"Applying changes to your project…":"Building your website and preview…"}</div><p className="mt-1 text-[11px] text-zinc-500">Generating files, validating the project structure and preparing the preview.</p></div>}
             {!messages.filter(m=>m.role!=="system").length&&<div className="rounded-2xl border border-violet-500/10 bg-violet-500/[.05] p-4"><div className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={15} className="text-violet-400"/> Ready when you are</div><p className="mt-2 text-xs leading-5 text-zinc-500">Try “Build a premium clinic SaaS with login, appointments and an admin dashboard.”</p><div className="mt-3 grid gap-2 text-[11px] text-zinc-500"><span>• Build the website first</span><span>• Preview instantly</span><span>• Connect GitHub/Vercel only when you want</span></div></div>}
             {messages.filter(m=>m.role!=="system").map(m=><div key={m.id} className={"rounded-2xl p-3 "+(m.role==="user"?"bg-black/5":"border border-violet-500/10 bg-violet-500/[.05]")}><div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{m.role==="user"?"You":"SK Builder"}</div><p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600">{m.content.slice(0,1600)}</p></div>)}
