@@ -183,7 +183,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] grid-cols-1 lg:grid-cols-[minmax(340px,400px)_minmax(0,1fr)] xl:grid-cols-[minmax(380px,430px)_minmax(0,1fr)]">
+      <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] grid-cols-1 lg:grid-cols-[minmax(360px,35%)_minmax(0,1fr)] xl:grid-cols-[minmax(420px,35%)_minmax(0,1fr)]">
         <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-1 flex min-h-[520px] h-[min(78dvh,760px)] flex-col overflow-hidden border-b lg:h-[calc(100dvh-68px-60px)] lg:min-h-0 lg:border-b-0 lg:border-r"}>
           <div className={(dark ? "border-white/10" : "border-slate-200") + " border-b px-5 py-4"}>
             <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
           <div className="relative h-[calc(min(78dvh,760px)-56px)] min-h-[460px] p-2 sm:h-[calc(100%-56px)] sm:min-h-[500px] sm:p-4 lg:h-[calc(100dvh-68px-60px-56px)] lg:min-h-[560px] lg:p-5">
             <div className={"relative mx-auto h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_25px_80px_rgba(0,0,0,.25)] transition-all duration-300 " + (device === "mobile" ? "max-w-[390px]" : device === "tablet" ? "max-w-[820px]" : "w-full")}>
               {preview ? (
-                <iframe title="SK Builder live website preview" src={preview.startsWith("<") ? undefined : preview} srcDoc={preview.startsWith("<") ? preview : undefined} sandbox="" className="h-full w-full bg-white" />
+                <iframe title="SK Builder live website preview" src={preview.startsWith("<") ? undefined : preview} srcDoc={preview.startsWith("<") ? preview : undefined} sandbox="allow-scripts allow-forms allow-modals allow-popups" className="h-full w-full bg-white" />
               ) : (
                 <div className="flex h-full items-center justify-center p-8 text-center">
                   <div className="max-w-md">
