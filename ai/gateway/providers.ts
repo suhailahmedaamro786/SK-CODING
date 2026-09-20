@@ -60,7 +60,9 @@ class AnthropicAdapter implements AIProviderAdapter {
 class GeminiAdapter implements AIProviderAdapter {
   readonly provider = "gemini" as const;
   async generateText(request: AIRequest, secret: string): Promise<AIResponse> {
-    const model = request.options?.model || request.modelPreference || "gemini-2.5-flash";
+    const requestedModel = request.options?.model || request.modelPreference || "gemini-3.6-flash";
+    // Gemini 2.5 Flash may be unavailable to newly provisioned API users; keep existing saved configs working by migrating that specific default to the current stable Flash model.
+    const model = requestedModel === "gemini-2.5-flash" || requestedModel === "models/gemini-2.5-flash" ? "gemini-3.6-flash" : requestedModel;
     const contents = request.messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
     const system = request.messages.find((m) => m.role === "system")?.content;
     const body = await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(secret)}`, {
