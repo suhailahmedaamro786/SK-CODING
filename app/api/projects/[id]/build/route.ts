@@ -105,7 +105,8 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       options: { maxTokens: 5000, temperature: 0.2 }
     })).text);
     const parsedPlan = design.plan || {};
-    const generatedPreview = safePreview(design.previewHtml);\n    const previewHtml = isPremiumPreview(generatedPreview) ? generatedPreview : premiumPreview(project.name, prompt, parsedPlan.pages);
+    const generatedPreview = safePreview(design.previewHtml);
+    const previewHtml = isPremiumPreview(generatedPreview) ? generatedPreview : premiumPreview(project.name, prompt, parsedPlan.pages);
     await supabase.from("projects").update({ preview_html: previewHtml || null, specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt }, architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString() }).eq("id", id);
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 2/5: preview ready. Generating source files." });
 
