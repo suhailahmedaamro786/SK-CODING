@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Code2, FileCode2, FolderTree, Github, Moon, Rocket, Send, Sparkles, Sun, X, ExternalLink, RefreshCw, Menu, PanelLeft } from "lucide-react";
+import { Bot, Code2, FileCode2, FolderTree, Github, Moon, Rocket, Send, Sparkles, Sun, X, Menu, Plus, Mic, ChevronDown } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 type FileItem = { path: string; content: string; status: string };
@@ -236,27 +236,30 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
             ))}
           </div>
 
-          <div className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " shrink-0 border-t p-4 shadow-[0_-12px_30px_rgba(0,0,0,.12)]"}>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); } }}
-              rows={3}
-              placeholder={files.length ? "Message SK Builder… tell it what to change" : "Message SK Builder… describe the website you want to build"}
-              className={(dark ? "border-white/10 bg-[#111219] text-zinc-100 placeholder:text-zinc-600" : "border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400") + " w-full resize-none rounded-2xl border p-3.5 text-sm leading-6 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/10"}
-            />
-            <button onClick={sendPrompt} disabled={busy || !prompt.trim()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition hover:-translate-y-0.5 hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40">
-              {busy ? "AI is building…" : files.length ? "Apply changes" : "Build website"} {!busy && <Send size={14} />}
-            </button>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {hasGithub ? (
-                <button onClick={syncGithub} disabled={syncing} className="rounded-lg border border-white/10 px-3 py-2.5 text-[11px] font-bold text-violet-400 transition hover:border-violet-400 disabled:opacity-40"><Github className="mr-1 inline" size={12} />{syncing ? "Syncing…" : "Sync GitHub"}</button>
-              ) : (
-                <Link href="/dashboard/integrations" className="rounded-lg border border-white/10 px-3 py-2.5 text-center text-[11px] font-bold text-zinc-400 transition hover:border-violet-400 hover:text-violet-400"><Github className="mr-1 inline" size={12} />Connect GitHub</Link>
-              )}
-              <button onClick={deploy} disabled={deploying || !files.length} className="rounded-lg border border-white/10 px-3 py-2.5 text-[11px] font-bold text-zinc-400 transition hover:border-violet-400 hover:text-violet-400 disabled:opacity-40"><Rocket className="mr-1 inline" size={12} />{deploying ? "Deploying" : "Vercel"}</button>
+          <div className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " shrink-0 border-t p-3 sm:p-4"}>
+            <div className={(dark ? "border-white/10 bg-[#111219]" : "border-slate-200 bg-white shadow-sm") + " rounded-2xl border p-2"}>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); } }}
+                rows={3}
+                placeholder={files.length ? "Ask SK Builder to change anything…" : "Ask SK Builder to build your website…"}
+                className={(dark ? "text-zinc-100 placeholder:text-zinc-600" : "text-slate-900 placeholder:text-slate-400") + " min-h-[82px] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm leading-6 outline-none focus:ring-0"}
+              />
+              <div className="flex items-center gap-1 pt-1">
+                <button type="button" aria-label="Add attachment" className={(dark ? "text-zinc-500 hover:bg-white/5" : "text-slate-500 hover:bg-slate-100") + " rounded-lg p-2 transition"}><Plus size={17}/></button>
+                <button type="button" className={(dark ? "text-zinc-400 hover:bg-white/5" : "text-slate-600 hover:bg-slate-100") + " flex items-center gap-1 rounded-lg px-2.5 py-2 text-[11px] font-semibold transition"}>Build <ChevronDown size={13}/></button>
+                <span className="flex-1"/>
+                <button type="button" aria-label="Voice input" className={(dark ? "text-zinc-500 hover:bg-white/5" : "text-slate-500 hover:bg-slate-100") + " rounded-lg p-2 transition"}><Mic size={16}/></button>
+                <button onClick={sendPrompt} disabled={busy || !prompt.trim()} aria-label={busy ? "Building" : "Send prompt"} className="grid h-9 w-9 place-items-center rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-30">
+                  {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"/> : <Send size={15}/>}
+                </button>
+              </div>
             </div>
-            <div className="mt-2 flex items-center justify-between px-1 text-[10px] text-zinc-600"><span>AI Builder</span><span>Enter to send · Shift+Enter for new line</span></div>
+            <div className="mt-2 flex items-center justify-between px-1 text-[10px] text-zinc-500">
+              <span>{hasGithub ? "GitHub connected" : "GitHub optional"} · {files.length ? "Edit mode" : "Build mode"}</span>
+              <span className="hidden sm:inline">Enter to send · Shift+Enter for new line</span>
+            </div>
           </div>
         </aside>
 
