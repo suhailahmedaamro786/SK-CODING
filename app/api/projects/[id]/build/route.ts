@@ -18,6 +18,21 @@ function cleanJson(text: string) {
   }
 }
 
+function cleanAiJson(text: string) {
+  const normalized = text.replace(/^\\uFEFF/, "").replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").trim();
+  try { return JSON.parse(normalized); } catch {}
+  try { return JSON.parse(jsonrepair(normalized)); } catch {}
+  const repaired = normalized.replace(/[\\u0000-\\u001F]/g, (ch) => {
+    if (ch === "\\n") return "\\\\n";
+    if (ch === "\\r") return "\\\\r";
+    if (ch === "\\t") return "\\\\t";
+    return "";
+  });
+  try { return JSON.parse(repaired); } catch (error) {
+    throw new Error("AI_INVALID_JSON: " + (error instanceof Error ? error.message : "invalid JSON"));
+  }
+}
+
 function parseGeneratedFiles(raw: string): { files: GeneratedFile[] } {
   try {
     return cleanJson(raw);
@@ -216,11 +231,11 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
 
     // Stage 1: plan + preview first, so the user sees a real website preview early.
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 1/5: planning and generating live preview." });
-    const design = cleanJson((await gateway.generateText({
+    const design = cleanAiJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "planning",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's product architect, software architect and UI/UX designer. Never ask questions; infer sensible requirements from the prompt." },
-        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nChoose the implementation stack from the user request. Support React.js, Next.js, Vite, TypeScript/JavaScript, Tailwind CSS, plain HTML/CSS/JavaScript, and Python backends such as FastAPI or Flask when appropriate. You may combine them for full-stack requests. Return technology as frontend, backend, language, styling, database, and tooling. The preview MUST be a complete polished standalone interactive HTML document with <!doctype html>, viewport meta, semantic nav/sidebar/header/main sections, a coherent visual design system, realistic product content, responsive desktop/tablet/mobile layouts, cards/tables/forms where relevant, loading/empty/error/success states, hover/focus states, gradients/borders/shadows, and tasteful CSS animations/transitions. Put all styling inside one <style> tag. You MAY include inline JavaScript inside one <script> tag for navigation, menus, search, filters, cart state, forms, modals and other client-side interactions. Never load external scripts, fonts, images, APIs or dependencies. No secrets." }
+        { role: "user", content: common + "\nReturn ONLY valid JSON matching this compact schema: {\"plan\":{\"summary\":\"short\",\"architecture\":{},\"technology\":{},\"pages\":[],\"components\":[],\"database_entities\":[]},\"previewHtml\":\"single-line HTML string\"}. Do not pretty-print JSON. Never put literal line breaks, tabs, or control characters inside JSON string values. Escape quotes and backslashes correctly.\nChoose the implementation stack from the user request. Support React.js, Next.js, Vite, TypeScript/JavaScript, Tailwind CSS, plain HTML/CSS/JavaScript, and Python backends such as FastAPI or Flask when appropriate. You may combine them for full-stack requests. Return technology as frontend, backend, language, styling, database, and tooling. The preview MUST be a complete polished standalone interactive HTML document with <!doctype html>, viewport meta, semantic nav/sidebar/header/main sections, a coherent visual design system, realistic product content, responsive desktop/tablet/mobile layouts, cards/tables/forms where relevant, loading/empty/error/success states, hover/focus states, gradients/borders/shadows, and tasteful CSS animations/transitions. Put all styling inside one <style> tag. You MAY include inline JavaScript inside one <script> tag for navigation, menus, search, filters, cart state, forms, modals and other client-side interactions. Never load external scripts, fonts, images, APIs or dependencies. No secrets." }
       ],
       options: { maxTokens: 5000, temperature: 0.2 }
     })).text);
@@ -267,7 +282,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
 
     if (!foundationOk(generatedFiles)) {
       await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "warn", message: "Generated source was missing a runnable foundation; retrying with explicit entry files." });
-      const retry = cleanJson((await gateway.generateText({
+      const retry = cleanAiJson((await gateway.generateText({
         userId: user.id, projectId: id, taskType: "code_generation",
         messages: [
           { role: "system", content: "Return JSON only. You are a senior software engineer. The previous generation did not contain a runnable foundation. Do not ask questions." },
