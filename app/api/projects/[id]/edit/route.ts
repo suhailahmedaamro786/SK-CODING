@@ -45,12 +45,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const result = await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
-        { role: "system", content: "You are SK Builder's senior code editor. Return JSON only. Never output secrets or .env files." },
+        { role: "system", content: "You are SK Builder's senior multi-language code editor. Return JSON only. Never output secrets or .env files." },
         { role: "user", content: `Modify the existing application according to this user request:
 "${prompt}"
 
 Return ONLY {"files":[{"path":"...","content":"..."}],"previewHtml":"..."}.
-Include ONLY files that actually need to change. Preserve architecture and dependencies. Keep TypeScript/Next.js compile-ready.
+Include ONLY files that actually need to change. Preserve the existing architecture and requested stack. If the project is Next.js, keep Next.js compile-ready; if React/Vite, keep Vite/React compile-ready; if Python, keep the FastAPI/Flask backend runnable; if full-stack, preserve the frontend/backend boundary. Never convert one stack into another unless the user explicitly requests it.
 previewHtml should be the updated browser-safe static visual preview, with no script tags, no external dependencies and no secrets.
 
 EXISTING FILES:
