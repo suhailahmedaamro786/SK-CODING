@@ -134,14 +134,14 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const result = { plan: parsedPlan, files: filesResult.files, previewHtml };
 
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 3/5: saving generated project files." });
-    const inserted = await supabase.from("project_plans").insert({
+    const inserted = await supabase.from("project_plans").upsert({
       project_id: id, version: 1, status: "executing",
       architecture: parsedPlan.architecture ?? null, technology: parsedPlan.technology ?? null,
       pages: parsedPlan.pages ?? null, components: parsedPlan.components ?? null,
       database_entities: parsedPlan.database_entities ?? null, apis: parsedPlan.apis ?? null,
       security: parsedPlan.security ?? null, testing: parsedPlan.testing ?? null,
       deployment: parsedPlan.deployment ?? null, tasks: parsedPlan.tasks ?? []
-    }).select("*").single();
+    }, { onConflict: "project_id,version" }).select("*").single();
     if (inserted.error) throw new Error(inserted.error.message);
     const plan = inserted.data;
 
