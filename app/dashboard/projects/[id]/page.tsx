@@ -18,6 +18,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   const [prompt,setPrompt]=useState("");
   const [busy,setBusy]=useState(false);
   const [deploying,setDeploying]=useState(false);
+  const [syncing,setSyncing]=useState(false);
   const [error,setError]=useState("");
   const [selected,setSelected]=useState("");
   const [preview,setPreview]=useState("");
@@ -53,6 +54,19 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
     }catch(e){setError(e instanceof Error?e.message:"AI task failed")}finally{setBusy(false)}
   }
 
+  async function syncGithub(){
+    setSyncing(true);setError("");
+    try{
+      const r=await fetch("/api/projects/"+id+"/github/sync",{method:"POST"});
+      const d=await r.json();
+      if(!r.ok){
+        if(d.error==="GITHUB_NOT_CONNECTED") throw new Error("Connect GitHub first from Connections.");
+        throw new Error(d.error||"GitHub sync failed");
+      }
+      if(d.repository?.url)setProject(p=>p?{...p,github_repo_url:d.repository.url}:p);
+    }catch(e){setError(e instanceof Error?e.message:"GitHub sync failed")}finally{setSyncing(false)}
+  }
+
   async function deploy(){
     setDeploying(true);setError("");
     try{
@@ -82,7 +96,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
       <span className="max-w-[160px] truncate text-sm font-medium">{project?.name||"Workspace"}</span>
       <div className="ml-auto flex items-center gap-1.5">
         <Link href="/dashboard/integrations" className="hidden rounded-lg px-2.5 py-2 text-xs font-medium text-zinc-400 transition hover:bg-black/5 hover:text-violet-500 sm:block">Connections</Link>
-        <a href={project?.github_repo_url||"https://github.com/suhailahmedaamro786/SK-CODING"} target="_blank" rel="noreferrer" className={"rounded-lg p-2 transition "+(hasGithub?"text-violet-500 hover:bg-black/5":"text-zinc-400 hover:bg-black/5")} title={hasGithub?"Open project GitHub":"GitHub is optional"}><Github size={17}/></a>
+        {hasGithub?<button onClick={syncGithub} className="rounded-lg p-2 text-violet-500 transition hover:bg-black/5" title="Sync project to GitHub"><Github size={17}/></button>:<Link href="/dashboard/integrations" className="rounded-lg p-2 text-zinc-400 transition hover:bg-black/5 hover:text-violet-500" title="Connect GitHub"><Github size={17}/></Link>}
         <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} className="rounded-lg p-2 text-zinc-400 transition hover:bg-black/5 hover:text-violet-500" title="Toggle theme">{theme==="dark"?<Sun size={17}/>:<Moon size={17}/>}</button>
         <UserButton />
         <button onClick={deploy} disabled={deploying||!files.length} className="hidden items-center gap-2 rounded-xl bg-violet-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:-translate-y-0.5 hover:bg-violet-400 disabled:opacity-40 sm:inline-flex"><Rocket size={14}/>{deploying?"Deploying…":"Deploy to Vercel"}</button>
@@ -125,7 +139,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
             <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendPrompt()}}} rows={5} placeholder={files.length?"Tell SK Builder what to change…":"Describe the website you want to build…"} className="w-full resize-none rounded-2xl border border-black/10 bg-black/[.03] p-3 text-sm outline-none transition focus:border-violet-400"/>
             <button onClick={sendPrompt} disabled={busy||!prompt.trim()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/15 transition hover:-translate-y-0.5 hover:bg-violet-400 disabled:opacity-40">{busy?"AI is building…":files.length?"Apply changes":"Build website"} {!busy&&<Send size={14}/>}</button>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Link href="/dashboard/integrations" className="rounded-lg border border-black/10 px-3 py-2 text-center text-[11px] font-medium text-zinc-500 transition hover:border-violet-300 hover:text-violet-500"><Github className="mr-1 inline" size={12}/>{hasGithub?"GitHub connected":"Connect GitHub"}</Link>
+              {hasGithub?<button onClick={syncGithub} disabled={syncing} className="rounded-lg border border-black/10 px-3 py-2 text-[11px] font-medium text-violet-500 transition hover:border-violet-300 disabled:opacity-40"><Github className="mr-1 inline" size={12}/>{syncing?"Syncing…":"Sync GitHub"}</button>:<Link href="/dashboard/integrations" className="rounded-lg border border-black/10 px-3 py-2 text-center text-[11px] font-medium text-zinc-500 transition hover:border-violet-300 hover:text-violet-500"><Github className="mr-1 inline" size={12}/>Connect GitHub</Link>}
               <button onClick={deploy} disabled={deploying||!files.length} className="rounded-lg border border-black/10 px-3 py-2 text-[11px] font-medium text-zinc-500 transition hover:border-violet-300 hover:text-violet-500 disabled:opacity-40"><Rocket className="mr-1 inline" size={12}/>{deploying?"Deploying":"Deploy to Vercel"}</button>
             </div>
             <p className="mt-2 text-center text-[10px] text-zinc-400">Enter to send · Shift+Enter for a new line</p>
