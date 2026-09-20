@@ -41,3 +41,15 @@ export async function refreshSupabaseToken(refreshToken: string) {
   if (!response.ok) throw new Error(body?.message || body?.error || "SUPABASE_TOKEN_REFRESH_FAILED");
   return body as { access_token: string; refresh_token?: string; expires_in?: number };
 }
+
+export async function runSupabaseSchemaSQL(accessToken: string, projectRef: string, query: string) {
+  const normalized = query.trim();
+  if (!normalized || normalized.length > 50000) throw new Error("SUPABASE_SQL_INVALID");
+  if (/(^|;)\s*(drop|truncate|delete|update|insert|alter\s+system|create\s+extension)\b/i.test(normalized)) {
+    throw new Error("SUPABASE_SQL_BLOCKED");
+  }
+  return supabaseManagementFetch<unknown>(accessToken, `/v1/projects/${encodeURIComponent(projectRef)}/database/query`, {
+    method: "POST",
+    body: JSON.stringify({ query: normalized }),
+  });
+}
