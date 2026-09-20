@@ -31,9 +31,14 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    params.then((p) => {
+    params.then(async (p) => {
       setId(p.id);
-      load(p.id);
+      await load(p.id);
+      const queuedPrompt = new URLSearchParams(window.location.search).get("prompt");
+      if (queuedPrompt) {
+        window.history.replaceState({}, "", window.location.pathname);
+        setTimeout(() => sendPrompt(queuedPrompt), 150);
+      }
     });
   }, []);
 
@@ -59,8 +64,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
     if (!selected && d.files?.[0]) setSelected(d.files[0].path);
   }
 
-  async function sendPrompt() {
-    const text = prompt.trim();
+  async function sendPrompt(initialPrompt?: string) {
+    const text = (initialPrompt ?? prompt).trim();
     if (!text || busy) return;
     setBusy(true);
     setError("");
