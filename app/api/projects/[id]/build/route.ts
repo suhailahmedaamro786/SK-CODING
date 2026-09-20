@@ -60,16 +60,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // multiple sequential model calls.
     await supabase.from("projects").update({ status: "building", updated_at: new Date().toISOString() }).eq("id", id);
 
-    const common = `Project: \${project.name}
-Original description: \${project.description || ""}
-User request: \${prompt}
+    const common = `Project: ${project.name}
+Original description: ${project.description || ""}
+User request: ${prompt}
 Generate a practical MVP, make reasonable assumptions, and do not ask questions.`;
 
     const result = cleanJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
         { role: "system", content: "Return JSON only. You are the senior product architect and engineer in SK Builder." },
-        { role: "user", content: `\${common}
+        { role: "user", content: `${common}
 Return ONLY this JSON shape:
 {
   "plan": { "summary": "...", "architecture": {}, "technology": {}, "pages": [], "components": [], "database_entities": [], "apis": [], "security": [], "testing": [], "deployment": [], "tasks": [] },
@@ -125,7 +125,6 @@ Every generated file must be compile-ready. No markdown fences. No .env files.` 
       }, { onConflict: "project_id,path" });
     }
 
-    const previewHtml = safePreview(core.previewHtml);
     await supabase.from("projects").update({ preview_html: previewHtml || null }).eq("id", id);
 
     const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
