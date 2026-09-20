@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Code2, FileCode2, FolderTree, Github, Moon, Rocket, Send, Sparkles, Sun, X } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
@@ -27,7 +27,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const [buildStatus, setBuildStatus] = useState("ready");
   const [buildLogs, setBuildLogs] = useState<{ message: string; level: string }[]>([]);
   const [fileCount, setFileCount] = useState(0);
-  const [inspector, setInspector] = useState<"files" | "code" | null>(null);
+  const [inspector, setInspector] = useState<"files" | "code" | null>(null);\n  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     params.then((p) => {
@@ -35,6 +35,11 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       load(p.id);
     });
   }, []);
+
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, busy]);
 
   async function load(projectId: string) {
     const r = await fetch("/api/projects/" + projectId);
@@ -189,7 +194,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-5 [scrollbar-width:thin]">
+          <div ref={chatScrollRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-5 [scrollbar-width:thin]">
             {busy && (
               <div className={(dark ? "border-white/10 bg-white/[.03]" : "border-slate-200 bg-slate-50") + " rounded-2xl border p-3"}>
                 <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500">
