@@ -14,7 +14,8 @@
     "react-dom": "^19.2.0",
     "lucide-react": "^0.468.0",
     "@clerk/nextjs": "^6.33.0",
-    "@supabase/supabase-js": "^2.57.0"
+    "@supabase/supabase-js": "^2.57.0",
+    "jsonrepair": "^3.15.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
