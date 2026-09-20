@@ -177,8 +177,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      <div className="mx-auto grid h-[calc(100vh-68px)] max-w-[1900px] overflow-hidden lg:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
-        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-2 flex h-full min-h-0 flex-col overflow-hidden border-b lg:order-1 lg:border-b-0 lg:border-r"}>
+      <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] lg:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
+        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-2 flex min-h-[calc(100vh-68px-60px)] flex-col overflow-hidden border-b lg:order-1 lg:border-b-0 lg:border-r"}>
           <div className={(dark ? "border-white/10" : "border-slate-200") + " border-b px-5 py-4"}>
             <div className="flex items-center justify-between">
               <div>
@@ -253,7 +253,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
           </div>
         </aside>
 
-        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-1 min-h-0 min-w-0 overflow-hidden lg:order-2"}>
+        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-1 min-h-[calc(100vh-68px-60px)] min-w-0 overflow-hidden lg:order-2"}>
           <div className={(dark ? "border-white/10 bg-[#0d0e13]" : "border-slate-200 bg-white") + " flex h-14 items-center gap-2 border-b px-3 sm:px-4"}>
             <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-400"><Sparkles size={13} /> PREVIEW</div>
             <span className="hidden text-[11px] text-zinc-500 sm:block">Live website preview</span>
@@ -264,7 +264,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          <div className="relative h-full min-h-0 p-3 sm:p-5">
+          <div className="relative h-[calc(100vh-68px-60px-56px)] min-h-[620px] p-3 sm:p-5">
             <div className={"relative mx-auto h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_25px_80px_rgba(0,0,0,.25)] transition-all duration-300 " + (device === "mobile" ? "max-w-[390px]" : device === "tablet" ? "max-w-[820px]" : "w-full")}>
               {preview ? (
                 <iframe title="SK Builder live website preview" src={preview.startsWith("<") ? undefined : preview} srcDoc={preview.startsWith("<") ? preview : undefined} sandbox="" className="h-full w-full bg-white" />
@@ -309,7 +309,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         </section>
       </div>
 
-      <footer className={(dark ? "border-white/10 bg-[#07080c]" : "border-slate-200 bg-white") + " border-t px-4 py-6 text-center text-[11px] text-zinc-500 sm:flex sm:items-center sm:justify-between sm:px-8"}>
+      <footer className={(dark ? "border-white/10 bg-[#07080c]" : "border-slate-200 bg-white") + " relative z-30 min-h-[60px] border-t px-4 py-5 text-center text-[11px] text-zinc-500 sm:flex sm:items-center sm:justify-between sm:px-8"}>
         <span>© 2026 SK Builder · Powered by <span className="font-semibold text-zinc-300">SUHAIL AHMED AAMRO</span></span><a href="https://my-portfilo-41201.vercel.app" target="_blank" rel="noreferrer" className="hover:text-violet-400">Portfolio</a>
       </footer>
     </main>
