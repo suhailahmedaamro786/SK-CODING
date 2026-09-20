@@ -25,7 +25,8 @@ class OpenAICompatibleAdapter implements AIProviderAdapter {
         model: request.options?.model || request.modelPreference || this.defaultModel,
         messages: request.messages,
         temperature: request.options?.temperature ?? 0.2,
-        max_tokens: request.options?.maxTokens ?? 4000,\n        response_format: { type: "json_object" },
+        max_tokens: request.options?.maxTokens ?? 4000,
+        response_format: { type: "json_object" },
       }),
     });
     const choice = body?.choices?.[0];
