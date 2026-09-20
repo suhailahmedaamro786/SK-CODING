@@ -316,7 +316,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
       </div>
 
       <footer className={(dark ? "border-white/10 bg-[#07080c]" : "border-slate-200 bg-white") + " relative z-30 min-h-[60px] border-t px-3 py-5 text-center text-[11px] text-zinc-500 sm:flex sm:items-center sm:justify-between sm:px-6"}>
-        <span className="leading-5">© 2026 SK Builder · Powered by <span className="font-semibold text-zinc-300">SUHAIL AHMED AAMRO</span></span><a className="mt-2 sm:mt-0" href="https://suhailahmedaamro.vercel.app" target="_blank" rel="noreferrer" className="hover:text-violet-400">Portfolio</a>
+        <span className="leading-5">© 2026 SK Builder · Powered by <span className="font-semibold text-zinc-300">SUHAIL AHMED AAMRO</span></span><a href="https://suhailahmedaamro.vercel.app" target="_blank" rel="noreferrer" className="mt-2 hover:text-violet-400 sm:mt-0">Portfolio</a>
       </footer>
     </main>
   );
