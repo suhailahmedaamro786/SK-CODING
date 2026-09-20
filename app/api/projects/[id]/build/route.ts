@@ -68,27 +68,33 @@ Original description: ${project.description || ""}
 User request: ${prompt}
 Generate a practical MVP, make reasonable assumptions, and do not ask questions.`;
 
-    const result = cleanJson((await gateway.generateText({
+    // Stage 1: plan + preview first, so the user sees a real website preview early.
+    await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 1/5: planning and generating live preview." });
+    const design = cleanJson((await gateway.generateText({
+      userId: user.id, projectId: id, taskType: "planning",
+      messages: [
+        { role: "system", content: "Return JSON only. You are SK Builder's product architect and UI/UX designer." },
+        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[] }, \"previewHtml\":\"...\" }\nCreate a polished responsive self-contained HTML/CSS preview with navigation, hero/content sections, realistic UI, responsive styling, and no scripts, external dependencies, or secrets." }
+      ],
+      options: { maxTokens: 5000, temperature: 0.2 }
+    })).text);
+    const parsedPlan = design.plan || {};
+    const previewHtml = safePreview(design.previewHtml);
+    await supabase.from("projects").update({ preview_html: previewHtml || null, specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt }, architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 2/5: preview ready. Generating source files." });
+
+    const filesResult = cleanJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
-        { role: "system", content: "Return JSON only. You are the senior product architect and engineer in SK Builder." },
-        { role: "user", content: `${common}
-Return ONLY this JSON shape:
-{
-  "plan": { "summary": "...", "architecture": {}, "technology": {}, "pages": [], "components": [], "database_entities": [], "apis": [], "security": [], "testing": [], "deployment": [], "tasks": [] },
-  "files": [{"path":"...","content":"..."}],
-  "previewHtml": "..."
-}
-Build a complete coherent Next.js App Router application using TypeScript and Tailwind.
-Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx.
-Add feature pages/components/API/types/README as useful; aim for 8-32 coherent files.
-previewHtml must be a polished static HTML/CSS representation of the requested website, with no script tags, no external dependencies and no secrets. It is only for the SK Builder preview pane.
-Every generated file must be compile-ready. No markdown fences. No .env files.` }
+        { role: "system", content: "Return JSON only. You are SK Builder's senior Next.js engineer. Do not ask questions." },
+        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nBuild a complete coherent Next.js App Router application using TypeScript and Tailwind. Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx. Add feature pages/components/API/types/README as useful; aim for 8-24 coherent files. Every file must be compile-ready. No markdown fences, .env files, secrets, or huge boilerplate." }
       ],
-      options: { maxTokens: 12000, temperature: 0.1 }
+      options: { maxTokens: 10000, temperature: 0.1 }
     })).text);
+    const result = { plan: parsedPlan, files: filesResult.files, previewHtml };
 
     const parsedPlan = result.plan || {};
+    await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 3/5: saving generated project files." });
     const inserted = await supabase.from("project_plans").insert({
       project_id: id, version: 1, status: "executing",
       architecture: parsedPlan.architecture ?? null, technology: parsedPlan.technology ?? null,
@@ -138,7 +144,9 @@ Every generated file must be compile-ready. No markdown fences. No .env files.` 
       priority: Number(t.priority || 100), status: "passed"
     })), { onConflict: "project_id,task_key" });
 
+    await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 4/5: project structure saved; finalizing build." });
     await supabase.from("project_plans").update({ status: "completed" }).eq("id", plan.id);
+    await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 5/5: build complete and preview live." });
     await supabase.from("projects").update({ status: "ready", updated_at: new Date().toISOString() }).eq("id", id);
     await supabase.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "assistant", content: `Build completed successfully. Generated ${merged.length} files and a live preview.` });
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: `Build completed: ${merged.length} files generated.${token ? " GitHub synced." : " GitHub not connected; kept in workspace."}` });
