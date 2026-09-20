@@ -131,7 +131,32 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
         options: { maxTokens: 6500, temperature: 0.1 }
       })).text);
     }
-    const result = { plan: parsedPlan, files: filesResult.files, previewHtml };
+    let generatedFiles = safeFiles(filesResult?.files);
+
+    const foundationOk = (items: GeneratedFile[]) => {
+      const paths = new Set(items.map((f) => f.path));
+      const hasNext = (paths.has("app/layout.tsx") || paths.has("app/layout.jsx")) && (paths.has("app/page.tsx") || paths.has("app/page.jsx"));
+      const hasReact = paths.has("package.json") && Array.from(paths).some((p) => /(^|\\/)src\\/main\\.(tsx|jsx)$/.test(p) || /(^|\\/)main\\.(tsx|jsx)$/.test(p));
+      const hasPython = Array.from(paths).some((p) => /(^|\\/)(main|app)\\.py$/.test(p)) && paths.has("requirements.txt");
+      const hasStatic = paths.has("index.html") && Array.from(paths).some((p) => /(^|\\/)styles?\\.css$/.test(p));
+      return hasNext || hasReact || hasPython || hasStatic;
+    };
+
+    if (!foundationOk(generatedFiles)) {
+      await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "warn", message: "Generated source was missing a runnable foundation; retrying with explicit entry files." });
+      const retry = cleanJson((await gateway.generateText({
+        userId: user.id, projectId: id, taskType: "code_generation",
+        messages: [
+          { role: "system", content: "Return JSON only. You are a senior software engineer. The previous generation did not contain a runnable foundation. Do not ask questions." },
+          { role: "user", content: common + "\nApproved technology: " + JSON.stringify(parsedPlan.technology ?? {}) + "\nReturn ONLY {\"files\":[{\"path\":\"...\",\"content\":\"...\"}]}. REQUIRED: include a runnable foundation for the selected stack. For Next.js App Router include package.json, app/layout.tsx and app/page.tsx. For React/Vite include package.json, index.html, src/main.tsx and src/App.tsx. For Python/FastAPI include requirements.txt and app/main.py. For static HTML include index.html and styles.css. Generate 8-16 concise files, all imports must resolve. No markdown, .env, secrets, binaries, or remote images." }
+        ],
+        options: { maxTokens: 7500, temperature: 0.1 }
+      })).text);
+      generatedFiles = safeFiles(retry?.files);
+      filesResult = retry;
+    }
+
+    const result = { plan: parsedPlan, files: generatedFiles, previewHtml };
 
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 3/5: saving generated project files." });
     const inserted = await supabase.from("project_plans").upsert({
@@ -151,11 +176,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     }).eq("id", id);
 
     const merged = safeFiles(result.files).filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32);
-    const hasNext = merged.some(f => f.path === "next-env.d.ts") && merged.some(f => f.path === "app/layout.tsx") && merged.some(f => f.path === "app/page.tsx");
-    const hasReact = merged.some(f => /(^|\/)package\.json$/.test(f.path)) && merged.some(f => /(^|\/)(src\/)?main\.(tsx|jsx)$/.test(f.path));
-    const hasPython = merged.some(f => /(^|\/)(main|app)\.py$/.test(f.path)) && merged.some(f => /(^|\/)requirements\.txt$/.test(f.path));
-    const hasStatic = merged.some(f => f.path === "index.html") && merged.some(f => /(^|\/)styles?\.css$/.test(f.path));
-    if (!(hasNext || hasReact || hasPython || hasStatic)) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
+    if (!foundationOk(merged)) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
     if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
 
     // If GitHub is connected, create/sync the repository. Otherwise keep the project in SK Builder.
