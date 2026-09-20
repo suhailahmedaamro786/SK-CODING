@@ -152,14 +152,14 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
 
   return (
     <main className={(dark ? "bg-[#07080c] text-zinc-100" : "bg-slate-100 text-slate-900") + " min-h-screen transition-colors duration-300"}>
-      <header className={(dark ? "border-white/10 bg-[#08090d]/95" : "border-slate-200 bg-white/95") + " sticky top-0 z-50 flex h-[68px] items-center gap-3 border-b px-4 shadow-[0_8px_30px_rgba(0,0,0,.08)] backdrop-blur-xl sm:px-6"}>
+      <header className={(dark ? "border-white/10 bg-[#08090d]/95" : "border-slate-200 bg-white/95") + " sticky top-0 z-50 flex min-h-[68px] items-center gap-2 border-b px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,.08)] backdrop-blur-xl sm:px-6"}>
         <Link href="/dashboard/projects" className="flex shrink-0 items-center gap-2.5 font-bold">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/25"><Sparkles size={16} /></span>
           <span className="hidden sm:block">SK Builder</span>
         </Link>
         <span className={dark ? "text-zinc-700" : "text-slate-300"}>/</span>
-        <span className={dark ? "text-zinc-700" : "text-slate-300"}>·</span><span className="max-w-[180px] truncate text-sm font-semibold">{project?.name || "Workspace"}</span><span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-400 sm:inline">{busy ? "Building" : project?.status || "Ready"}</span>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <span className={dark ? "text-zinc-700" : "text-slate-300"}>·</span><span className="min-w-0 max-w-[34vw] truncate text-xs font-semibold sm:max-w-[180px] sm:text-sm">{project?.name || "Workspace"}</span><span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-400 sm:inline">{busy ? "Building" : project?.status || "Ready"}</span>
+        <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-2">
           <Link href="/dashboard/integrations" className="hidden rounded-lg px-3 py-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-violet-400 sm:block">Connections</Link>
           {hasGithub ? (
             <button onClick={syncGithub} className="rounded-lg p-2 text-violet-400 transition hover:bg-violet-500/10" title="Sync to GitHub"><Github size={17} /></button>
@@ -183,8 +183,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] grid-cols-1 lg:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
-        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-1 flex min-h-[620px] h-[min(78vh,860px)] flex-col overflow-hidden border-b lg:h-[calc(100vh-68px-60px)] lg:min-h-0 lg:border-b-0 lg:border-r"}>
+      <div className="mx-auto grid min-h-[calc(100vh-68px-60px)] max-w-[1900px] grid-cols-1 lg:grid-cols-[minmax(340px,400px)_minmax(0,1fr)] xl:grid-cols-[minmax(380px,430px)_minmax(0,1fr)]">
+        <aside className={(dark ? "border-white/10 bg-[#090a0e]" : "border-slate-200 bg-white") + " order-1 flex min-h-[520px] h-[min(78dvh,760px)] flex-col overflow-hidden border-b lg:h-[calc(100dvh-68px-60px)] lg:min-h-0 lg:border-b-0 lg:border-r"}>
           <div className={(dark ? "border-white/10" : "border-slate-200") + " border-b px-5 py-4"}>
             <div className="flex items-center justify-between">
               <div>
@@ -259,7 +259,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
           </div>
         </aside>
 
-        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-2 min-h-[620px] min-w-0 overflow-hidden lg:min-h-[calc(100vh-68px-60px)] lg:order-2"}>
+        <section className={(dark ? "bg-[#101217]" : "bg-slate-50") + " order-2 min-h-[520px] min-w-0 overflow-hidden lg:min-h-[calc(100dvh-68px-60px)] lg:order-2"}>
           <div className={(dark ? "border-white/10 bg-[#0d0e13]" : "border-slate-200 bg-white") + " flex h-14 items-center gap-2 border-b px-3 sm:px-4"}>
             <div className="flex items-center gap-2 rounded-lg bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-400"><Sparkles size={13} /> PREVIEW</div>
             <span className="hidden text-[11px] text-zinc-500 sm:block">Live website preview</span>
@@ -270,7 +270,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          <div className="relative h-[calc(min(78vh,860px)-56px)] min-h-[500px] p-2.5 sm:h-[calc(100%-56px)] sm:min-h-[540px] sm:p-4 lg:h-[calc(100vh-68px-60px-56px)] lg:min-h-[620px] lg:p-5">
+          <div className="relative h-[calc(min(78dvh,760px)-56px)] min-h-[460px] p-2 sm:h-[calc(100%-56px)] sm:min-h-[500px] sm:p-4 lg:h-[calc(100dvh-68px-60px-56px)] lg:min-h-[560px] lg:p-5">
             <div className={"relative mx-auto h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_25px_80px_rgba(0,0,0,.25)] transition-all duration-300 " + (device === "mobile" ? "max-w-[390px]" : device === "tablet" ? "max-w-[820px]" : "w-full")}>
               {preview ? (
                 <iframe title="SK Builder live website preview" src={preview.startsWith("<") ? undefined : preview} srcDoc={preview.startsWith("<") ? preview : undefined} sandbox="" className="h-full w-full bg-white" />
@@ -306,7 +306,7 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
               )}
             </div>
 
-            <div className="mx-auto mt-3 flex w-full max-w-[900px] px-1 sm:px-0 items-center justify-center gap-2">
+            <div className="mx-auto mt-3 flex w-full max-w-[900px] flex-wrap items-center justify-center gap-2 px-1 sm:px-0">
               <button onClick={() => setInspector(inspector === "files" ? null : "files")} className={(inspector === "files" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><FolderTree size={13} /> Files {fileCount ? "(" + fileCount + ")" : ""}</button>
               <button onClick={() => setInspector(inspector === "code" ? null : "code")} className={(inspector === "code" ? "border-violet-400 bg-violet-500/10 text-violet-400" : dark ? "border-white/10 text-zinc-400" : "border-slate-200 text-slate-500") + " inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold transition hover:border-violet-400 hover:text-violet-400"}><Code2 size={13} /> Code</button>
               <span className="hidden text-[10px] text-zinc-600 md:inline">Click Files or Code — no permanent folder sidebar.</span>
@@ -315,8 +315,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
         </section>
       </div>
 
-      <footer className={(dark ? "border-white/10 bg-[#07080c]" : "border-slate-200 bg-white") + " relative z-30 min-h-[60px] border-t px-4 py-5 text-center text-[11px] sm:px-6 text-zinc-500 sm:flex sm:items-center sm:justify-between sm:px-8"}>
-        <span>© 2026 SK Builder · Powered by <span className="font-semibold text-zinc-300">SUHAIL AHMED AAMRO</span></span><a href="https://suhailahmedaamro.vercel.app" target="_blank" rel="noreferrer" className="hover:text-violet-400">Portfolio</a>
+      <footer className={(dark ? "border-white/10 bg-[#07080c]" : "border-slate-200 bg-white") + " relative z-30 min-h-[60px] border-t px-3 py-5 text-center text-[11px] text-zinc-500 sm:flex sm:items-center sm:justify-between sm:px-6"}>
+        <span className="leading-5">© 2026 SK Builder · Powered by <span className="font-semibold text-zinc-300">SUHAIL AHMED AAMRO</span></span><a className="mt-2 sm:mt-0" href="https://suhailahmedaamro.vercel.app" target="_blank" rel="noreferrer" className="hover:text-violet-400">Portfolio</a>
       </footer>
     </main>
   );
