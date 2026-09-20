@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { decryptSecret } from "@/lib/secrets";
 import { createGithubRepository, getStoredGithubToken, upsertGithubFile } from "@/lib/github";
 import { AIGateway } from "@/ai/gateway";
+import { getSelectedSupabaseConnection, runSupabaseSchemaSQL } from "@/lib/supabase-management";
 
 type GeneratedFile = { path: string; content: string };
 
@@ -79,7 +80,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       userId: user.id, projectId: id, taskType: "planning",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's product architect and UI/UX designer." },
-        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[] }, \"previewHtml\":\"...\" }\nCreate a polished responsive self-contained HTML/CSS preview with navigation, hero/content sections, realistic UI, responsive styling, and no scripts, external dependencies, or secrets." }
+        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nCreate a polished responsive self-contained HTML/CSS preview with navigation, hero/content sections, realistic UI, responsive styling, and no scripts, external dependencies, or secrets." }
       ],
       options: { maxTokens: 5000, temperature: 0.2 }
     })).text);
@@ -147,6 +148,13 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       priority: Number(t.priority || 100), status: "passed"
     })), { onConflict: "project_id,task_key" });
 
+    const supabaseConnection = await getSelectedSupabaseConnection(user.id);
+    const databaseSql = typeof parsedPlan.database_sql === "string" ? parsedPlan.database_sql.trim() : "";
+    if (supabaseConnection && databaseSql) {
+      await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 4/5: applying guarded Supabase database schema." });
+      await runSupabaseSchemaSQL(supabaseConnection.accessToken, supabaseConnection.projectRef, databaseSql);
+      await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Supabase schema applied successfully." });
+    }
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 4/5: project structure saved; finalizing build." });
     await supabase.from("project_plans").update({ status: "completed" }).eq("id", plan.id);
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 5/5: build complete and preview live." });
