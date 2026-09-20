@@ -105,7 +105,12 @@ function safeFiles(value: unknown) {
 }
 function safePreview(value: unknown) {
   if (typeof value !== "string") return "";
-  return value.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 120000);
+  // The preview runs inside a sandboxed iframe. Preserve inline JavaScript so
+  // generated websites can actually navigate and respond to clicks/forms.
+  return value
+    .replace(/<script[^>]+src=["'][^"']+["'][^>]*><\/script>/gi, "")
+    .replace(/<link[^>]+href=["']https?:\/\/[^"']+["'][^>]*>/gi, "")
+    .slice(0, 160000);
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -155,7 +160,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       userId: user.id, projectId: id, taskType: "planning",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's product architect, software architect and UI/UX designer. Never ask questions; infer sensible requirements from the prompt." },
-        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nChoose the implementation stack from the user request. Support React.js, Next.js, Vite, TypeScript/JavaScript, Tailwind CSS, plain HTML/CSS/JavaScript, and Python backends such as FastAPI or Flask when appropriate. You may combine them for full-stack requests. Return technology as frontend, backend, language, styling, database, and tooling. The preview MUST be a complete polished standalone HTML document with <!doctype html>, viewport meta, semantic nav/sidebar/header/main sections, a coherent visual design system, realistic product content, responsive desktop/tablet/mobile layouts, cards/tables/forms where relevant, loading/empty/error states, hover/focus states, gradients/borders/shadows, and tasteful CSS animations/transitions. Put all styling inside one <style> tag. No scripts, external dependencies, remote images, or secrets." }
+        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nChoose the implementation stack from the user request. Support React.js, Next.js, Vite, TypeScript/JavaScript, Tailwind CSS, plain HTML/CSS/JavaScript, and Python backends such as FastAPI or Flask when appropriate. You may combine them for full-stack requests. Return technology as frontend, backend, language, styling, database, and tooling. The preview MUST be a complete polished standalone interactive HTML document with <!doctype html>, viewport meta, semantic nav/sidebar/header/main sections, a coherent visual design system, realistic product content, responsive desktop/tablet/mobile layouts, cards/tables/forms where relevant, loading/empty/error/success states, hover/focus states, gradients/borders/shadows, and tasteful CSS animations/transitions. Put all styling inside one <style> tag. You MAY include inline JavaScript inside one <script> tag for navigation, menus, search, filters, cart state, forms, modals and other client-side interactions. Never load external scripts, fonts, images, APIs or dependencies. No secrets." }
       ],
       options: { maxTokens: 5000, temperature: 0.2 }
     })).text);
@@ -174,7 +179,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's senior multi-language software engineer. Do not ask questions. Follow the approved stack exactly." },
-        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nGenerate the actual source project for the selected stack. If the user asks Next.js, use Next.js App Router; React.js should use React/Vite unless Next.js is explicit; use Tailwind when requested; honor TypeScript or JavaScript; Python means a real FastAPI or Flask backend when appropriate. For full-stack prompts, generate frontend + backend with clear folders and API integration points. Never silently convert a Python/backend request into HTML-only or Next.js-only code. Build a professional multi-page product with reusable components, responsive UI, accessibility, realistic states, forms/tables/cards, and tasteful CSS transitions/animations. Generate 10-24 concise coherent files and include the correct runnable foundation for the chosen stack plus README/run instructions. Every import/path must resolve. Return valid JSON only, with all newlines inside content escaped. No markdown fences, .env files, secrets, binary data, remote image URLs, or huge boilerplate." }
+        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nGenerate the actual source project for the selected stack. If the user asks Next.js, use Next.js App Router; React.js should use React/Vite unless Next.js is explicit; use Tailwind when requested; honor TypeScript or JavaScript; Python means a real FastAPI or Flask backend when appropriate. For full-stack prompts, generate frontend + backend with clear folders and API integration points. Never silently convert a Python/backend request into HTML-only or Next.js-only code. Build a professional multi-page product with reusable components, responsive UI, accessibility, realistic states, forms/tables/cards, and tasteful CSS transitions/animations. Generate 14-24 coherent files for a full website, not a one-page mockup, and include the correct runnable foundation for the chosen stack plus README/run instructions. For e-commerce specifically, include separate routes/components/data for home, shop, product details, categories, cart, checkout, login/signup, profile/orders/wishlist and a 404 state; use reusable components and realistic local demo data. Every import/path must resolve. Return valid JSON only, with all newlines inside content escaped. No markdown fences, .env files, secrets, binary data, remote image URLs, or huge boilerplate." }
       ],
       options: { maxTokens: 8000, temperature: 0.1 }
     })).text);
@@ -214,6 +219,21 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       filesResult = retry;
     }
 
+    const minimumWebsiteFiles = ecommerce ? 14 : 8;
+    if (generatedFiles.length < minimumWebsiteFiles) {
+      await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "warn", message: ecommerce ? "E-commerce source was too small; requesting a complete multi-page source set." : "Generated source was too small; requesting a larger coherent source set." });
+      const expanded = cleanJson((await gateway.generateText({
+        userId: user.id, projectId: id, taskType: "code_generation",
+        messages: [
+          { role: "system", content: "Return JSON only. You are a senior product engineer. Do not ask questions. Generate a complete runnable website, not a mockup." },
+          { role: "user", content: common + "\nApproved technology: " + JSON.stringify(parsedPlan.technology ?? {}) + "\nReturn ONLY {\"files\":[{\"path\":\"...\",\"content\":\"...\"}]}. Generate at least " + minimumWebsiteFiles + " coherent files. This is an e-commerce website: it MUST have real separate routes/pages for Home, Shop, Product Details, Categories, Cart, Checkout, Login, Signup, Profile, Orders, Wishlist and 404, plus reusable Navbar, Footer, ProductCard, cart/product data and responsive styling. Use local demo data; no external APIs or images. Next.js App Router if Next.js is approved. All imports must resolve. No markdown, .env, secrets or binaries." }
+        ],
+        options: { maxTokens: 10000, temperature: 0.1 }
+      })).text);
+      const expandedFiles = safeFiles(expanded?.files);
+      if (expandedFiles.length > generatedFiles.length) generatedFiles = expandedFiles;
+    }
+
     generatedFiles = normalizeFoundation(generatedFiles, parsedPlan.technology, project.name);
     const result = { plan: parsedPlan, files: generatedFiles, previewHtml };
 
@@ -240,7 +260,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       project.name
     );
     if (!foundationOk(merged)) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
-    if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
+    if (merged.length < (ecommerce ? 14 : 8)) throw new Error("AI_GENERATION_TOO_SMALL");
 
     // If GitHub is connected, create/sync the repository. Otherwise keep the project in SK Builder.
     if (token) {
