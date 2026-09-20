@@ -7,9 +7,14 @@ import { AIGateway } from "@/ai/gateway";
 type GeneratedFile = { path: string; content: string };
 
 function cleanJson(text: string) {
-  const t = text.replace(/^\u0060\u0060\u0060json\s*/i, "").replace(/\s*\u0060\u0060\u0060$/i, "").trim();
-  const m = t.match(/\{[\s\S]*\}/);
-  return JSON.parse(m ? m[0] : t);
+  let t = text.trim();
+  if (t.startsWith("```")) t = t.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const first = t.indexOf("{");
+  const last = t.lastIndexOf("}");
+  if (first >= 0 && last > first) t = t.slice(first, last + 1);
+  try { return JSON.parse(t); } catch (error) {
+    throw new Error("AI_INVALID_JSON: " + (error instanceof Error ? error.message : "invalid JSON"));
+  }
 }
 function repoName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "sk-builder-app";
@@ -87,9 +92,9 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
         { role: "system", content: "Return JSON only. You are SK Builder's senior Next.js engineer. Do not ask questions." },
-        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nBuild a complete coherent Next.js App Router application using TypeScript and Tailwind. Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx. Add feature pages/components/API/types/README as useful; aim for 8-24 coherent files. Every file must be compile-ready. No markdown fences, .env files, secrets, or huge boilerplate." }
+        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nBuild a complete coherent Next.js App Router application using TypeScript and Tailwind. Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx. Add feature pages/components/API/types/README as useful; aim for 8-12 coherent files. Every file must be compile-ready. Return valid JSON only, with all newlines inside content escaped. No markdown fences, .env files, secrets, or huge boilerplate." }
       ],
-      options: { maxTokens: 10000, temperature: 0.1 }
+      options: { maxTokens: 8000, temperature: 0.1 }
     })).text);
     const result = { plan: parsedPlan, files: filesResult.files, previewHtml };
 
