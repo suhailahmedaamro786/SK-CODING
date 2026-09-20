@@ -39,6 +39,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   async function sendPrompt(){
     const text=prompt.trim(); if(!text||busy)return;
     setBusy(true);setError("");
+    setMessages(prev=>[...prev,{id:`local-${Date.now()}`,role:"user",content:text,created_at:new Date().toISOString()}]);
     try{
       const r=await fetch("/api/projects/"+id+(files.length?"/edit":"/build"),{
         method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:text})
@@ -132,6 +133,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
             <div className="flex items-center justify-between"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.25em] text-violet-400"><Bot size={14}/> AI BUILDER</div><p className="mt-1 text-xs text-zinc-500">Build, edit, refine — no questionnaire.</p></div><span className="grid h-8 w-8 place-items-center rounded-full bg-violet-500/10 text-violet-400"><Sparkles size={14}/></span></div>
           </div>
           <div className="flex-1 space-y-3 overflow-auto p-4">
+            {busy&&<div className="rounded-2xl border border-violet-500/20 bg-violet-500/[.06] p-3"><div className="flex items-center gap-2 text-xs font-medium text-violet-400"><span className="h-2 w-2 animate-pulse rounded-full bg-violet-400"/>{files.length?"Applying changes to your project…":"Building your website and preview…"}</div><p className="mt-1 text-[11px] text-zinc-500">Generating files, validating the project structure and preparing the preview.</p></div>}
             {!messages.filter(m=>m.role!=="system").length&&<div className="rounded-2xl border border-violet-500/10 bg-violet-500/[.05] p-4"><div className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={15} className="text-violet-400"/> Ready when you are</div><p className="mt-2 text-xs leading-5 text-zinc-500">Try “Build a premium clinic SaaS with login, appointments and an admin dashboard.”</p><div className="mt-3 grid gap-2 text-[11px] text-zinc-500"><span>• Build the website first</span><span>• Preview instantly</span><span>• Connect GitHub/Vercel only when you want</span></div></div>}
             {messages.filter(m=>m.role!=="system").map(m=><div key={m.id} className={"rounded-2xl p-3 "+(m.role==="user"?"bg-black/5":"border border-violet-500/10 bg-violet-500/[.05]")}><div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{m.role==="user"?"You":"SK Builder"}</div><p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600">{m.content.slice(0,1600)}</p></div>)}
           </div>
