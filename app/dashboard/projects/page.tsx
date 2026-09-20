@@ -2,19 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Bot, Github, Plus, Sparkles, Wand2 } from "lucide-react";
+import { Bot, Boxes, Check, ChevronRight, Github, Plus, Sparkles, UserRound, X } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 type Project={id:string;name:string;slug:string;description:string|null;status:string};
 
+function projectName(prompt:string){
+  const quoted=prompt.match(/["“”']([^"“”']{3,60})["“”']/);
+  if(quoted?.[1]) return quoted[1].trim();
+  const clean=prompt.replace(/\s+/g," ").trim();
+  const words=clean.split(" ").slice(0,5).join(" ");
+  return (words || "New Project").replace(/[.,!?;:]+$/,"").slice(0,60) || "New Project";
+}
+
 export default function ProjectsPage(){
   const [projects,setProjects]=useState<Project[]>([]);
-  const [name,setName]=useState("");
-  const [description,setDescription]=useState("");
+  const [prompt,setPrompt]=useState("");
   const [loading,setLoading]=useState(true);
   const [creating,setCreating]=useState(false);
   const [error,setError]=useState("");
   const [providers,setProviders]=useState<any[]>([]);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
 
   async function load(){
     setLoading(true);
@@ -25,59 +33,110 @@ export default function ProjectsPage(){
     setLoading(false);
   }
   useEffect(()=>{load()},[]);
+
   async function createProject(e:React.FormEvent){
-    e.preventDefault(); if(!name.trim()||!description.trim())return;
+    e.preventDefault();
+    const text=prompt.trim();
+    if(!text||creating)return;
     setCreating(true);setError("");
-    const r=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,description})});
-    const d=await r.json();setCreating(false);
-    if(!r.ok){setError(d.error??"Could not create project");return}
-    window.location.href=`/dashboard/projects/${d.project.id}`;
+    const name=projectName(text);
+    const r=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,description:text})});
+    const d=await r.json();
+    if(!r.ok){setCreating(false);setError(d.error??"Could not create project");return}
+    window.location.href="/dashboard/projects/"+d.project.id+"?prompt="+encodeURIComponent(text);
   }
+
   const hasAI=providers.some(p=>p.enabled);
 
-  return <main className="min-h-screen bg-[#07080c] text-white">
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8">
-      <header className="sticky top-4 z-20 flex items-center justify-between rounded-2xl border border-white/10 bg-[#0b0d11]/85 px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur-xl">
-        <Link href="/dashboard" className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/20"><Sparkles size={17}/></span><span className="font-semibold tracking-tight">SK Builder</span></Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link href="/dashboard/projects" className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white">Builder</Link>
-          <Link href="/dashboard/ai-providers" className="rounded-lg px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-white"><Bot className="mr-1 inline" size={14}/>AI Providers</Link>
-          <Link href="/dashboard/integrations" className="rounded-lg px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-white"><Github className="mr-1 inline" size={14}/>Connections</Link>
-        </nav>
-        <div className="flex items-center gap-2"><UserButton /></div>
-      </header>
+  return (
+    <main className="min-h-screen bg-[#f7f8fc] text-slate-900">
+      <div className="flex min-h-screen">
+        {sidebarOpen&&<button aria-label="Close navigation" onClick={()=>setSidebarOpen(false)} className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm lg:hidden"/>}
+        <aside className={(sidebarOpen?"translate-x-0":"-translate-x-full")+" fixed inset-y-0 left-0 z-50 flex w-[286px] flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 lg:static lg:translate-x-0 lg:shadow-none"}>
+          <div className="flex h-[68px] items-center gap-3 border-b border-slate-200 px-5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-500 text-white shadow-lg shadow-violet-500/20"><Sparkles size={17}/></span>
+            <span className="font-bold tracking-tight">SK Builder</span>
+            <button onClick={()=>setSidebarOpen(false)} className="ml-auto rounded-lg p-2 text-slate-400 hover:bg-slate-100 lg:hidden"><X size={17}/></button>
+          </div>
 
-      <section className="relative overflow-hidden py-14 sm:py-20">
-        <div className="pointer-events-none absolute -left-32 top-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"/>
-        <div className="pointer-events-none absolute right-0 top-20 h-72 w-72 rounded-full bg-cyan-400/5 blur-3xl"/>
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-400/5 px-3 py-1.5 text-[11px] font-medium text-violet-300"><Wand2 size={13}/> AI SOFTWARE FACTORY</div>
-          <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-[-.05em] sm:text-6xl">Describe it. Build it. <span className="text-violet-400">See it.</span></h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-500">SK Builder creates the website inside your workspace first. GitHub, Supabase and Vercel are optional delivery connections — you decide when to use them.</p>
-        </div>
+          <nav className="flex-1 overflow-y-auto p-3">
+            <Link href="/dashboard/projects" onClick={()=>setSidebarOpen(false)} className="flex items-center gap-3 rounded-xl bg-violet-50 px-3 py-2.5 text-sm font-semibold text-violet-600">
+              <Plus size={17}/> New project
+            </Link>
 
-        {!hasAI&&<div className="mt-8 flex flex-col gap-4 rounded-2xl border border-violet-400/20 bg-violet-400/[.06] p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-semibold">Connect your AI provider</div><p className="mt-1 text-sm text-zinc-500">Add an encrypted OpenAI, Gemini, Anthropic or OpenRouter key to start building.</p></div><Link href="/dashboard/ai-providers" className="rounded-xl bg-white px-4 py-2.5 text-center text-sm font-semibold text-black transition hover:-translate-y-0.5">Add AI key <ArrowRight className="ml-1 inline" size={15}/></Link></div>}
+            <div className="mt-6 px-3 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Your projects</div>
+            <div className="mt-2 space-y-1">
+              {loading?<div className="px-3 py-2 text-xs text-slate-400">Loading…</div>:projects.length===0?<div className="px-3 py-2 text-xs text-slate-400">No projects yet</div>:projects.map(p=>(
+                <Link key={p.id} href={"/dashboard/projects/"+p.id} onClick={()=>setSidebarOpen(false)} className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+                  <Boxes size={15} className="shrink-0 text-slate-400"/>
+                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  <span className={"h-1.5 w-1.5 rounded-full "+(p.status==="failed"?"bg-red-400":p.status==="completed"?"bg-emerald-400":"bg-amber-400")}/>
+                </Link>
+              ))}
+            </div>
 
-        {error&&<div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
-        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
-          <form onSubmit={createProject} className="rounded-3xl border border-white/10 bg-white/[.035] p-6 shadow-2xl shadow-black/20 transition duration-300 hover:border-violet-400/20 sm:p-7">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em] text-zinc-500"><Plus size={14}/> New project</div>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight">What do you want to build?</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">No interview. No questionnaire. Give the builder one clear prompt and refine it later in chat.</p>
-            <label className="mt-6 block text-sm text-zinc-300">Project name<input value={name} onChange={e=>setName(e.target.value)} placeholder="ClinicFlow" className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-400/10"/></label>
-            <label className="mt-4 block text-sm text-zinc-300">Your prompt<textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Build a premium clinic management SaaS with login, patients, appointments and an admin dashboard..." rows={8} className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-400/10"/></label>
-            <button disabled={creating||!name.trim()||!description.trim()||!hasAI} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:-translate-y-0.5 hover:bg-violet-400 disabled:opacity-40">{creating?"Opening workspace…":"Start building with AI"} {!creating&&<ArrowRight size={16}/>}</button>
-            <p className="mt-3 text-center text-[11px] text-zinc-600">GitHub/Vercel connection is not required to create or preview your website.</p>
-          </form>
+            <div className="my-5 border-t border-slate-100"/>
+            <div className="px-3 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Workspace</div>
+            <Link href="/dashboard/ai-providers" onClick={()=>setSidebarOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              <Bot size={16}/><span className="flex-1">AI Providers</span><span className={"h-1.5 w-1.5 rounded-full "+(hasAI?"bg-emerald-400":"bg-amber-400")}/>
+            </Link>
+            <Link href="/dashboard/integrations" onClick={()=>setSidebarOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              <Github size={16}/><span className="flex-1">Connections</span><ChevronRight size={14} className="text-slate-300"/>
+            </Link>
+          </nav>
 
-          <section>
-            <div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">Your projects</h2><p className="mt-1 text-xs text-zinc-600">Continue building any saved workspace.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-500">{projects.length}</span></div>
-            {loading?<p className="text-zinc-500">Loading…</p>:projects.length===0?<div className="rounded-3xl border border-dashed border-white/10 p-14 text-center"><Sparkles className="mx-auto text-zinc-700" size={28}/><p className="mt-3 text-sm text-zinc-600">Your projects will appear here.</p></div>:<div className="grid gap-3 sm:grid-cols-2">{projects.map(p=><Link key={p.id} href={`/dashboard/projects/${p.id}`} className="group rounded-2xl border border-white/10 bg-white/[.02] p-5 transition duration-300 hover:-translate-y-1 hover:border-violet-400/30 hover:bg-white/[.045]"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold group-hover:text-violet-300">{p.name}</h3><span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] uppercase tracking-wide text-violet-300">{p.status}</span></div><p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-600">{p.description||"AI-built application"}</p><div className="mt-4 text-xs text-zinc-500 transition group-hover:text-violet-400">Open workspace →</div></Link>)}</div>}
-          </section>
-        </div>
-      </section>
+          <div className="border-t border-slate-200 p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+              <UserRound size={17} className="text-slate-400"/>
+              <span className="flex-1 text-xs font-medium text-slate-600">Account</span>
+              <UserButton/>
+            </div>
+          </div>
+        </aside>
 
-      <footer className="border-t border-white/10 py-8 text-center text-xs text-zinc-600"><p>Powered by <span className="text-zinc-300">SUHAIL AHMED AAMRO</span></p><a href="https://my-portfilo-41201.vercel.app" target="_blank" rel="noreferrer" className="mt-2 inline-block hover:text-white">Portfolio ↗</a></footer>
-    </div>
-  </main>;
+        <section className="min-w-0 flex-1">
+          <header className="sticky top-0 z-30 flex h-[68px] items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl sm:px-6">
+            <button onClick={()=>setSidebarOpen(true)} aria-label="Open navigation" className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden"><span className="text-lg">☰</span></button>
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-bold sm:text-base">New project</h1>
+              <p className="hidden text-xs text-slate-400 sm:block">Describe what you want. SK Builder starts building.</p>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium sm:flex "+(hasAI?"border-emerald-200 bg-emerald-50 text-emerald-600":"border-amber-200 bg-amber-50 text-amber-600")}>
+                <span className={"h-1.5 w-1.5 rounded-full "+(hasAI?"bg-emerald-400":"bg-amber-400")}/>{hasAI?"AI ready":"AI provider needed"}
+              </span>
+            </div>
+          </header>
+
+          <div className="mx-auto flex min-h-[calc(100vh-68px)] max-w-5xl items-center px-4 py-10 sm:px-8">
+            <div className="w-full">
+              <div className="mx-auto max-w-3xl text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-violet-100 text-violet-600"><Sparkles size={25}/></div>
+                <h2 className="mt-6 text-3xl font-black tracking-[-.04em] sm:text-5xl">What do you want to build?</h2>
+                <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-slate-500">Tell AI what you need in your own words. No questionnaire. No setup flow. SK Builder will understand the prompt and start the build.</p>
+
+                {error&&<div className="mx-auto mt-6 max-w-2xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-600">{error}</div>}
+
+                <form onSubmit={createProject} className="mx-auto mt-8 max-w-3xl rounded-3xl border border-slate-200 bg-white p-3 text-left shadow-[0_20px_70px_rgba(15,23,42,.10)]">
+                  <textarea autoFocus value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();createProject(e)}}} placeholder="Build a premium clinic management SaaS with patients, appointments, billing and analytics…" rows={6} className="w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-7 text-slate-900 outline-none placeholder:text-slate-400 sm:text-base"/>
+                  <div className="flex items-center gap-2 border-t border-slate-100 px-2 pt-3">
+                    <span className="px-2 text-[11px] text-slate-400">AI Builder</span>
+                    <span className="flex-1"/>
+                    <span className="hidden text-[10px] text-slate-400 sm:block">Enter to build · Shift+Enter for new line</span>
+                    <button disabled={creating||!prompt.trim()} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">
+                      {creating?"Starting…":"Build with AI"}<ChevronRight size={15}/>
+                    </button>
+                  </div>
+                </form>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {["Build a SaaS dashboard","Create an e-commerce app","Build a booking platform"].map(s=><button type="button" key={s} onClick={()=>setPrompt(s)} className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-[11px] text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600">{s}</button>)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
