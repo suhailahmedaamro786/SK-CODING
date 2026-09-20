@@ -25,7 +25,7 @@ class OpenAICompatibleAdapter implements AIProviderAdapter {
         model: request.options?.model || request.modelPreference || this.defaultModel,
         messages: request.messages,
         temperature: request.options?.temperature ?? 0.2,
-        max_tokens: request.options?.maxTokens ?? 4000,
+        max_tokens: request.options?.maxTokens ?? 4000,\n        response_format: { type: "json_object" },
       }),
     });
     const choice = body?.choices?.[0];
@@ -46,7 +46,7 @@ class AnthropicAdapter implements AIProviderAdapter {
     const body = await jsonFetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": secret, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: request.options?.maxTokens ?? 4000, temperature: request.options?.temperature ?? 0.2, system, messages }),
+      body: JSON.stringify({ model, max_tokens: request.options?.maxTokens ?? 4000, temperature: request.options?.temperature ?? 0.2, system: `${system || ""}\\nReturn valid JSON only. Do not use markdown fences. Escape all newlines and quotes inside JSON string values.`, messages }),
     });
     const text = body?.content?.filter((x: {type?: string}) => x.type === "text").map((x: {text?: string}) => x.text || "").join("") || "";
     if (!text) throw new Error("EMPTY_AI_RESPONSE");
