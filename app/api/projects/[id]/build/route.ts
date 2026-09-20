@@ -79,8 +79,8 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const design = cleanJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "planning",
       messages: [
-        { role: "system", content: "Return JSON only. You are SK Builder's product architect and UI/UX designer." },
-        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nCreate a polished responsive self-contained HTML/CSS preview with navigation, hero/content sections, realistic UI, responsive styling, and no scripts, external dependencies, or secrets." }
+        { role: "system", content: "Return JSON only. You are SK Builder's product architect, software architect and UI/UX designer. Never ask questions; infer sensible requirements from the prompt." },
+        { role: "user", content: common + "\nReturn ONLY: { \"plan\": { \"summary\":\"...\", \"architecture\":{}, \"technology\":{}, \"pages\":[], \"components\":[], \"database_entities\":[], \"apis\":[], \"security\":[], \"testing\":[], \"deployment\":[], \"tasks\":[], \"database_sql\":\"\" }, \"previewHtml\":\"...\" }\nChoose the implementation stack from the user request. Support React.js, Next.js, Vite, TypeScript/JavaScript, Tailwind CSS, plain HTML/CSS/JavaScript, and Python backends such as FastAPI or Flask when appropriate. You may combine them for full-stack requests. Return technology as frontend, backend, language, styling, database, and tooling. The preview is always a browser-safe visual representation of the requested product: polished responsive UI, realistic sections/components, cards/tables/forms where relevant, loading/empty/error states, hover/focus states, gradients/borders/shadows, and tasteful CSS animations. No scripts, external dependencies, remote images, or secrets." }
       ],
       options: { maxTokens: 5000, temperature: 0.2 }
     })).text);
@@ -92,8 +92,8 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const filesResult = cleanJson((await gateway.generateText({
       userId: user.id, projectId: id, taskType: "code_generation",
       messages: [
-        { role: "system", content: "Return JSON only. You are SK Builder's senior Next.js engineer. Do not ask questions." },
-        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nBuild a complete coherent Next.js App Router application using TypeScript and Tailwind. This must be a real multi-page/product-ready UI, not a single HTML page. Include a reusable responsive app shell, navigation, polished visual system, interactive-looking states, dashboard/content pages appropriate to the prompt, forms/tables/cards, loading/empty/error states, accessible controls, and tasteful CSS transitions/animations. Required foundation files: package.json, tsconfig.json, next-env.d.ts, app/layout.tsx, app/globals.css, app/page.tsx. Add concise reusable components and 2-4 feature pages plus types/README as useful; aim for 10-16 coherent files. Every file must be compile-ready and imports must resolve. Return valid JSON only, with all newlines inside content escaped. No markdown fences, .env files, secrets, binary data, remote image URLs, or huge boilerplate." }
+        { role: "system", content: "Return JSON only. You are SK Builder's senior multi-language software engineer. Do not ask questions. Follow the approved stack exactly." },
+        { role: "user", content: common + "\nApproved plan:\n" + JSON.stringify(parsedPlan) + "\nReturn ONLY: { \"files\":[{\"path\":\"...\",\"content\":\"...\"}] }\nGenerate the actual source project for the selected stack. If the user asks Next.js, use Next.js App Router; React.js should use React/Vite unless Next.js is explicit; use Tailwind when requested; honor TypeScript or JavaScript; Python means a real FastAPI or Flask backend when appropriate. For full-stack prompts, generate frontend + backend with clear folders and API integration points. Never silently convert a Python/backend request into HTML-only or Next.js-only code. Build a professional multi-page product with reusable components, responsive UI, accessibility, realistic states, forms/tables/cards, and tasteful CSS transitions/animations. Generate 10-24 concise coherent files and include the correct runnable foundation for the chosen stack plus README/run instructions. Every import/path must resolve. Return valid JSON only, with all newlines inside content escaped. No markdown fences, .env files, secrets, binary data, remote image URLs, or huge boilerplate." }
       ],
       options: { maxTokens: 8000, temperature: 0.1 }
     })).text);
@@ -112,13 +112,16 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const plan = inserted.data;
 
     await supabase.from("projects").update({
-      status: "building", specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt },
+      status: "building", specification: { summary: parsedPlan.summary ?? "", initial_prompt: prompt, technology: parsedPlan.technology ?? null },
       architecture: parsedPlan.architecture ?? null, updated_at: new Date().toISOString()
     }).eq("id", id);
 
     const merged = safeFiles(result.files).filter((file, index, arr) => arr.findIndex(x => x.path === file.path) === index).slice(0, 32);
-    const required = ["package.json", "tsconfig.json", "next-env.d.ts", "app/layout.tsx", "app/globals.css", "app/page.tsx"];
-    if (required.some(p => !merged.some(f => f.path === p))) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
+    const hasNext = merged.some(f => f.path === "next-env.d.ts") && merged.some(f => f.path === "app/layout.tsx") && merged.some(f => f.path === "app/page.tsx");
+    const hasReact = merged.some(f => /(^|\/)package\.json$/.test(f.path)) && merged.some(f => /(^|\/)(src\/)?main\.(tsx|jsx)$/.test(f.path));
+    const hasPython = merged.some(f => /(^|\/)(main|app)\.py$/.test(f.path)) && merged.some(f => /(^|\/)requirements\.txt$/.test(f.path));
+    const hasStatic = merged.some(f => f.path === "index.html") && merged.some(f => /(^|\/)styles?\.css$/.test(f.path));
+    if (!(hasNext || hasReact || hasPython || hasStatic)) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
     if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
 
     // If GitHub is connected, create/sync the repository. Otherwise keep the project in SK Builder.
