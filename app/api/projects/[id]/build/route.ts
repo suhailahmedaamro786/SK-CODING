@@ -93,7 +93,6 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     })).text);
     const result = { plan: parsedPlan, files: filesResult.files, previewHtml };
 
-    const parsedPlan = result.plan || {};
     await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: "Stage 3/5: saving generated project files." });
     const inserted = await supabase.from("project_plans").insert({
       project_id: id, version: 1, status: "executing",
@@ -116,7 +115,6 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     if (required.some(p => !merged.some(f => f.path === p))) throw new Error("AI_GENERATION_MISSING_FOUNDATION");
     if (merged.length < 8) throw new Error("AI_GENERATION_TOO_SMALL");
 
-    const previewHtml = safePreview(result.previewHtml);
     // If GitHub is connected, create/sync the repository. Otherwise keep the project in SK Builder.
     if (token) {
       if (!fullName) {
