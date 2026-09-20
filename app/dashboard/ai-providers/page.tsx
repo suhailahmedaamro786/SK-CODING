@@ -90,6 +90,15 @@ export default function AIProvidersPage() {
                 </div>
               ))}
             </div>
+            <div className="mt-6 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-5">
+              <div className="font-medium">How many websites can one API key build?</div>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">SK Builder does not currently impose a fixed website count per key. One connected key can be reused across your projects. The practical limit is the AI provider's quota, rate limits, billing/credits and the token cost of each build or edit.</p>
+              <div className="mt-3 grid gap-2 text-xs text-zinc-600 sm:grid-cols-2">
+                <span>• One key → multiple projects</span><span>• Each build consumes AI usage</span>
+                <span>• Add another provider for fallback</span><span>• Keys stay server-side encrypted</span>
+              </div>
+            </div>
+
             <div className="mt-8 rounded-2xl bg-violet-400/5 p-5">
               <div className="font-medium">3. Start building</div>
               <p className="mt-2 text-sm leading-6 text-zinc-500">After connecting a key, go to Projects, describe your app in one prompt, and SK Builder starts the build pipeline.</p>
