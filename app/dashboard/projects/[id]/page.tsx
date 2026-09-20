@@ -24,6 +24,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   const [preview,setPreview]=useState("");
   const [tab,setTab]=useState<"preview"|"code">("preview");
   const [theme,setTheme]=useState<"dark"|"light">("dark");
+  const [device,setDevice]=useState<"desktop"|"tablet"|"mobile">("desktop");
   const [buildStatus,setBuildStatus]=useState("ready");
   const [buildLogs,setBuildLogs]=useState<{message:string;level:string}[]>([]);
   const [fileCount,setFileCount]=useState(0);
@@ -129,11 +130,14 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" flex h-12 items-center gap-1 border-b px-3"}>
             <button onClick={()=>setTab("preview")} className={"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition "+(tab==="preview"?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}><Wand2 size={13}/> PREVIEW</button>
             <button onClick={()=>setTab("code")} className={"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition "+(tab==="code"?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}><Code2 size={13}/> CODE</button>
-            <span className="ml-auto rounded-full bg-black/5 px-2.5 py-1 text-[10px] uppercase tracking-widest text-zinc-500">{files.length} files</span>
+            <div className="ml-auto hidden items-center gap-1 sm:flex">
+              {(["desktop","tablet","mobile"] as const).map(d=><button key={d} onClick={()=>setDevice(d)} className={"rounded-md px-2 py-1 text-[10px] capitalize "+(device===d?"bg-violet-500/10 text-violet-400":"text-zinc-500")}>{d}</button>)}
+              <span className="ml-1 rounded-full bg-black/5 px-2.5 py-1 text-[10px] uppercase tracking-widest text-zinc-500">{files.length} files</span>
+            </div>
           </div>
 
           {tab==="preview"?<div className="h-[calc(100vh-7rem)] min-h-[600px] p-3 sm:p-4">
-            <div className="relative h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl">
+            <div className={"relative mx-auto h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl transition-all duration-300 "+(device==="mobile"?"max-w-[390px]":device==="tablet"?"max-w-[820px]":"w-full")}>
               {preview?<iframe title="SK Builder website preview" src={preview.startsWith("<")?undefined:preview} srcDoc={preview.startsWith("<")?preview:undefined} sandbox="" className="h-full w-full bg-white"/>:
               <div className="flex h-full items-center justify-center p-8 text-center text-slate-500"><div><Sparkles className="mx-auto mb-4 text-violet-400" size={30}/><h2 className="text-lg font-semibold text-slate-800">Your website preview will appear here</h2><p className="mt-2 max-w-md text-sm">Describe your product in the AI Builder. SK Builder creates the website first — GitHub and Vercel are optional delivery connections.</p></div></div>}
             </div>
