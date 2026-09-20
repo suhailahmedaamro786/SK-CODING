@@ -245,7 +245,7 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     })).text);
     } catch {
       await supabase.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "warn", message: "Primary source generation was malformed; retrying with a smaller request." });
-      filesResult = cleanJson((await gateway.generateText({
+      filesResult = parseGeneratedFiles((await gateway.generateText({
         userId: user.id, projectId: id, taskType: "code_generation",
         messages: [
           { role: "system", content: "Return JSON only. Generate a compact runnable project. Never ask questions." },
