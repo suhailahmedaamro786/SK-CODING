@@ -27,7 +27,8 @@ export default function ProjectWorkspace({ params }: { params: Promise<{ id: str
   const [buildStatus, setBuildStatus] = useState("ready");
   const [buildLogs, setBuildLogs] = useState<{ message: string; level: string }[]>([]);
   const [fileCount, setFileCount] = useState(0);
-  const [inspector, setInspector] = useState<"files" | "code" | null>(null);\n  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [inspector, setInspector] = useState<"files" | "code" | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     params.then((p) => {
