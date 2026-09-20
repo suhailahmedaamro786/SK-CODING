@@ -125,29 +125,24 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
     <div className="mx-auto max-w-[1800px]">
       {error&&<div className="mx-3 mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300 sm:mx-5">{error}<Link href="/dashboard/integrations" className="ml-2 underline">Connections</Link></div>}
 
-      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1fr)_280px_390px]">
+      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className={(theme==="dark"?"border-white/10 bg-[#101217]":"border-slate-200 bg-slate-50")+" min-w-0 border-r"}>
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" flex h-12 items-center gap-1 border-b px-3"}>
             <button onClick={()=>setTab("preview")} className={"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition "+(tab==="preview"?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}><Wand2 size={13}/> PREVIEW</button>
-            <button onClick={()=>setTab("code")} className={"inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition "+(tab==="code"?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}><Code2 size={13}/> CODE</button>
+            <span className="hidden text-[10px] text-zinc-500 sm:inline">Live website preview</span>
             <div className="ml-auto hidden items-center gap-1 sm:flex">
               {(["desktop","tablet","mobile"] as const).map(d=><button key={d} onClick={()=>setDevice(d)} className={"rounded-md px-2 py-1 text-[10px] capitalize "+(device===d?"bg-violet-500/10 text-violet-400":"text-zinc-500")}>{d}</button>)}
-              <span className="ml-1 rounded-full bg-black/5 px-2.5 py-1 text-[10px] uppercase tracking-widest text-zinc-500">{files.length} files</span>
+              
             </div>
           </div>
 
-          {tab==="preview"?<div className="h-[calc(100vh-7rem)] min-h-[600px] p-3 sm:p-4">
+          {<div className="h-[calc(100vh-7rem)] min-h-[600px] p-3 sm:p-4">
             <div className={"relative mx-auto h-full overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl transition-all duration-300 "+(device==="mobile"?"max-w-[390px]":device==="tablet"?"max-w-[820px]":"w-full")}>
               {preview?<iframe title="SK Builder website preview" src={preview.startsWith("<")?undefined:preview} srcDoc={preview.startsWith("<")?preview:undefined} sandbox="" className="h-full w-full bg-white"/>:
               <div className="flex h-full items-center justify-center p-8 text-center text-slate-500"><div><Sparkles className="mx-auto mb-4 text-violet-400" size={30}/><h2 className="text-lg font-semibold text-slate-800">Your website preview will appear here</h2><p className="mt-2 max-w-md text-sm">Describe your product in the AI Builder. SK Builder creates the website first — GitHub and Vercel are optional delivery connections.</p></div></div>}
             </div>
-          </div>:<div className="h-[calc(100vh-7rem)] min-h-[600px] overflow-auto p-4 sm:p-5">{current?<><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Code2 size={15}/>{current.path}</div><pre className="overflow-auto rounded-2xl border border-black/10 bg-black/[.04] p-5 text-xs leading-5 text-zinc-600">{current.content}</pre></>:<p className="text-sm text-zinc-500">Select a file from Project Files.</p>}</div>}
+          </div>}
         </section>
-
-        <aside className={(theme==="dark"?"border-white/10 bg-[#0b0d11]":"border-slate-200 bg-white")+" hidden border-r lg:block"}>
-          <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" border-b p-4"}><div className="text-xs font-semibold uppercase tracking-[.25em] text-violet-400">PROJECT FILES</div><div className="mt-1 text-xs text-zinc-500">Your generated source</div></div>
-          <div className="max-h-[calc(100vh-7rem)] overflow-auto p-3">{files.length?files.map(f=><button key={f.path} onClick={()=>{setSelected(f.path);setTab("code")}} className={"mb-1 block w-full rounded-lg px-3 py-2 text-left text-xs transition "+(selected===f.path?"bg-violet-500/10 text-violet-400":"text-zinc-500 hover:bg-black/5")}>{f.path}</button>):<p className="p-3 text-xs leading-5 text-zinc-500">Files appear after the first build.</p>}</div>
-        </aside>
 
         <aside className={(theme==="dark"?"border-white/10 bg-[#090a0e]":"border-slate-200 bg-white")+" flex min-h-[620px] flex-col border-t lg:border-t-0"}>
           <div className={(theme==="dark"?"border-white/10":"border-slate-200")+" border-b p-4"}>
@@ -161,7 +156,7 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
             {buildLogs.slice(-3).map((l,i)=><p key={i} className="mt-2 truncate text-[10px] text-zinc-600">• {l.message}</p>)}
           </div>}
 
-            {busy&&<div className="rounded-2xl border border-violet-500/20 bg-violet-500/[.06] p-3"><div className="flex items-center gap-2 text-xs font-medium text-violet-400"><span className="h-2 w-2 animate-pulse rounded-full bg-violet-400"/>{files.length?"Applying changes to your project…":"Building your website and preview…"}</div><p className="mt-1 text-[11px] text-zinc-500">Generating files, validating the project structure and preparing the preview.</p></div>}
+            {busy&&<div className="rounded-2xl border border-violet-500/20 bg-violet-500/[.06] p-3"><div className="flex items-center gap-2 text-xs font-medium text-violet-400"><span className="h-2 w-2 animate-pulse rounded-full bg-violet-400"/>{files.length?"AI is refining your website…":"AI is building your website…"}</div><p className="mt-1 text-[11px] text-zinc-500">Designing UI, generating the app structure, validating the build and preparing the live preview.</p></div>}
             {!messages.filter(m=>m.role!=="system").length&&<div className="rounded-2xl border border-violet-500/10 bg-violet-500/[.05] p-4"><div className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={15} className="text-violet-400"/> Ready when you are</div><p className="mt-2 text-xs leading-5 text-zinc-500">Try “Build a premium clinic SaaS with login, appointments and an admin dashboard.”</p><div className="mt-3 grid gap-2 text-[11px] text-zinc-500"><span>• Build the website first</span><span>• Preview instantly</span><span>• Connect GitHub/Vercel only when you want</span></div></div>}
             {messages.filter(m=>m.role!=="system").map(m=><div key={m.id} className={"rounded-2xl p-3 "+(m.role==="user"?"bg-black/5":"border border-violet-500/10 bg-violet-500/[.05]")}><div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{m.role==="user"?"You":"SK Builder"}</div><p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600">{m.content.slice(0,1600)}</p></div>)}
           </div>
