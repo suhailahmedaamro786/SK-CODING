@@ -136,9 +136,9 @@ Generate a practical MVP, make reasonable assumptions, and do not ask questions.
     const foundationOk = (items: GeneratedFile[]) => {
       const paths = new Set(items.map((f) => f.path));
       const hasNext = (paths.has("app/layout.tsx") || paths.has("app/layout.jsx")) && (paths.has("app/page.tsx") || paths.has("app/page.jsx"));
-      const hasReact = paths.has("package.json") && Array.from(paths).some((p) => /(^|\\/)src\\/main\\.(tsx|jsx)$/.test(p) || /(^|\\/)main\\.(tsx|jsx)$/.test(p));
-      const hasPython = Array.from(paths).some((p) => /(^|\\/)(main|app)\\.py$/.test(p)) && paths.has("requirements.txt");
-      const hasStatic = paths.has("index.html") && Array.from(paths).some((p) => /(^|\\/)styles?\\.css$/.test(p));
+      const hasReact = paths.has("package.json") && Array.from(paths).some((p) => p === "src/main.tsx" || p === "src/main.jsx" || p === "main.tsx" || p === "main.jsx");
+      const hasPython = Array.from(paths).some((p) => p === "main.py" || p === "app.py" || p.endsWith("/main.py") || p.endsWith("/app.py")) && paths.has("requirements.txt");
+      const hasStatic = paths.has("index.html") && Array.from(paths).some((p) => p === "style.css" || p === "styles.css" || p.endsWith("/style.css") || p.endsWith("/styles.css"));
       return hasNext || hasReact || hasPython || hasStatic;
     };
 
