@@ -27,7 +27,8 @@ export default function ProjectWorkspace({params}:{params:Promise<{id:string}>})
   const [device,setDevice]=useState<"desktop"|"tablet"|"mobile">("desktop");
   const [buildStatus,setBuildStatus]=useState("ready");
   const [buildLogs,setBuildLogs]=useState<{message:string;level:string}[]>([]);
-  const [fileCount,setFileCount]=useState(0);\n  const [inspector,setInspector]=useState<"code"|"files"|null>(null);
+  const [fileCount,setFileCount]=useState(0);
+  const [inspector,setInspector]=useState<"code"|"files"|null>(null);
 
   useEffect(()=>{params.then(p=>{setId(p.id);load(p.id)})},[]);
   async function load(projectId:string){
