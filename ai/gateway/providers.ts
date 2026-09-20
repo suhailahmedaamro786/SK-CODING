@@ -71,7 +71,15 @@ class GeminiAdapter implements AIProviderAdapter {
       try {
         const body = await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(secret)}`, {
           method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({\n            systemInstruction: system ? { parts: [{ text: system }] } : undefined,\n            contents,\n            generationConfig: {\n              temperature: request.options?.temperature ?? 0.2,\n              maxOutputTokens: request.options?.maxTokens ?? 6000,\n              responseMimeType: "application/json"\n            }\n          }),
+          body: JSON.stringify({
+            systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+            contents,
+            generationConfig: {
+              temperature: request.options?.temperature ?? 0.2,
+              maxOutputTokens: request.options?.maxTokens ?? 6000,
+              responseMimeType: "application/json"
+            }
+          }),
         });
         const text = body?.candidates?.[0]?.content?.parts?.map((p: {text?: string}) => p.text || "").join("") || "";
         if (!text) throw new Error("EMPTY_AI_RESPONSE");
