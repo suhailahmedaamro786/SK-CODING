@@ -9,6 +9,10 @@ function cleanJson(text: string) {
   const m = t.match(/\{[\s\S]*\}/);
   return JSON.parse(m ? m[0] : t);
 }
+function safePreview(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 120000);
+}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -22,10 +26,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { data: project } = await s.from("projects").select("*").eq("id", id).eq("owner_clerk_user_id", user.id).maybeSingle();
     if (!project) return Response.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
 
-    const { data: connection } = await s.from("github_connections").select("encrypted_access_token").eq("clerk_user_id", user.id).maybeSingle();
-    if (!connection?.encrypted_access_token) return Response.json({ error: "GITHUB_NOT_CONNECTED" }, { status: 400 });
-    const token = await getStoredGithubToken(connection.encrypted_access_token);
-
     const { data: providers } = await s.from("ai_providers").select("provider,model,priority").eq("clerk_user_id", user.id).eq("enabled", true).order("priority");
     const configured: any[] = [];
     for (const p of providers || []) {
@@ -33,6 +33,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (k.data?.enabled && k.data.encrypted_secret) configured.push({ provider: p.provider, model: p.model || undefined, priority: p.priority, secret: decryptSecret(k.data.encrypted_secret) });
     }
     if (!configured.length) return Response.json({ error: "NO_AI_PROVIDER_CONFIGURED" }, { status: 400 });
+
+    const { data: connection } = await s.from("github_connections").select("encrypted_access_token").eq("clerk_user_id", user.id).maybeSingle();
+    const token = connection?.encrypted_access_token ? await getStoredGithubToken(connection.encrypted_access_token) : "";
 
     const { data: files } = await s.from("project_files").select("path,content").eq("project_id", id).eq("status", "generated").order("path");
     if (!files?.length) return Response.json({ error: "BUILD_REQUIRED" }, { status: 400 });
@@ -46,12 +49,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         { role: "user", content: `Modify the existing application according to this user request:
 "${prompt}"
 
-Return ONLY {"files":[{"path":"...","content":"..."}]} with ONLY files that actually need to change. Preserve the existing architecture and dependencies. Make the smallest coherent production-minded change. Keep TypeScript/Next.js compile-ready.
+Return ONLY {"files":[{"path":"...","content":"..."}],"previewHtml":"..."}.
+Include ONLY files that actually need to change. Preserve architecture and dependencies. Keep TypeScript/Next.js compile-ready.
+previewHtml should be the updated browser-safe static visual preview, with no script tags, no external dependencies and no secrets.
 
 EXISTING FILES:
 ${fileContext}` }
       ],
-      options: { maxTokens: 9000, temperature: 0.1 }
+      options: { maxTokens: 10000, temperature: 0.1 }
     });
 
     const parsed = cleanJson(result.text);
@@ -61,21 +66,21 @@ ${fileContext}` }
     ).slice(0, 20) : [];
     if (!changed.length) return Response.json({ error: "AI_RETURNED_NO_FILE_CHANGES" }, { status: 502 });
 
+    if (token && project.github_repo_full_name) {
+      for (const f of changed) await upsertGithubFile(token, project.github_repo_full_name, f.path, f.content, `SK Builder: edit ${f.path}`);
+    }
     for (const f of changed) {
-      await upsertGithubFile(token, project.github_repo_full_name, f.path, f.content, `SK Builder: edit ${f.path}`);
-      await s.from("project_files").upsert({
-        project_id: id, path: f.path, content: f.content, content_hash: null,
-        status: "generated", updated_at: new Date().toISOString()
-      }, { onConflict: "project_id,path" });
+      await s.from("project_files").upsert({ project_id: id, path: f.path, content: f.content, content_hash: null, status: "generated", updated_at: new Date().toISOString() }, { onConflict: "project_id,path" });
     }
 
+    const previewHtml = safePreview(parsed.previewHtml);
+    if (previewHtml) await s.from("projects").update({ preview_html: previewHtml }).eq("id", id);
     await s.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "user", content: prompt, metadata: { action: "edit" } });
     await s.from("project_messages").insert({ project_id: id, clerk_user_id: user.id, role: "assistant", content: `Updated ${changed.length} file(s): ${changed.map((f: any) => f.path).join(", ")}`, metadata: { action: "edit", files: changed.map((f: any) => f.path) } });
-
     await s.from("build_logs").insert({ project_id: id, clerk_user_id: user.id, level: "info", message: `Workspace edit completed: ${changed.length} files changed.` });
     await s.from("projects").update({ status: "ready", updated_at: new Date().toISOString() }).eq("id", id);
 
-    return Response.json({ ok: true, files: changed.map((f: any) => f.path), message: `Updated ${changed.length} file(s).` });
+    return Response.json({ ok: true, files: changed.map((f: any) => f.path), previewHtml, githubSynced: Boolean(token && project.github_repo_full_name), message: `Updated ${changed.length} file(s).` });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "EDIT_FAILED" }, { status: 500 });
   }
