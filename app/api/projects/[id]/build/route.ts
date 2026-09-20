@@ -34,7 +34,7 @@ function premiumPreview(projectName: string, prompt: string, pages: unknown) {
 
 function isPremiumPreview(html: string) {
   const lower = html.toLowerCase();
-  const styleMatch = html.match(/<style[^>]*>([\\s\\S]*?)<\\/style>/i);
+  const styleMatch = html.match(/<style[^>]*>([\\s\S]*?)<\/style>/i);
   const css = styleMatch?.[1] || "";
   return html.length > 2200 &&
     lower.includes("<style") &&
