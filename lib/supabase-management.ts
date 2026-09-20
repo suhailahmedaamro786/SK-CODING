@@ -53,3 +53,17 @@ export async function runSupabaseSchemaSQL(accessToken: string, projectRef: stri
     body: JSON.stringify({ query: normalized }),
   });
 }
+
+export async function getSelectedSupabaseConnection(userId: string) {
+  const { createServerSupabaseClient } = await import("@/lib/supabase/server");
+  const supabase = createServerSupabaseClient();
+  const { data } = await supabase.from("supabase_connections").select("project_ref,encrypted_access_token").eq("clerk_user_id", userId).neq("project_ref", "pending").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!data?.encrypted_access_token || !data.project_ref) return null;
+  let stored = decodeSupabaseOAuthSecret(data.encrypted_access_token);
+  if (stored.expiresAt && stored.expiresAt < Date.now() + 60_000 && stored.refreshToken) {
+    const refreshed = await refreshSupabaseToken(stored.refreshToken);
+    stored = { accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token || stored.refreshToken, expiresAt: Date.now() + Number(refreshed.expires_in || 3600) * 1000 };
+    await supabase.from("supabase_connections").update({ encrypted_access_token: encodeSupabaseOAuthSecret(stored), updated_at: new Date().toISOString() }).eq("clerk_user_id", userId).eq("project_ref", data.project_ref);
+  }
+  return { projectRef: data.project_ref, accessToken: stored.accessToken };
+}
